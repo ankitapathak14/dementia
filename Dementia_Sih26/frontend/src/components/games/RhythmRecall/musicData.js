@@ -1,0 +1,71 @@
+/**
+ * musicData.js — Shared Single Source of Truth for Rhythm & Recall Demo Songs
+ * =========================================================================
+ * Used across ALL 4 modes:
+ *  1. Recognize the Song
+ *  2. Tap to the Rhythm
+ *  3. Hum Along
+ *  4. Memory Connection
+ */
+
+export const DEMO_SONGS = [
+  {
+    music_id: "song-01",
+    title: "Bihu Festival Folk Melody",
+    artist: "Traditional Assamese (Public Domain)",
+    region: "Assam",
+    language: "Assamese",
+    genre: "Bihu Folk",
+    era: "1960-1980",
+    audio_url: "/audio/song_bihu_folk.wav",
+    duration_seconds: 30,
+    is_active: true,
+    description: "Traditional Assamese folk melody for cognitive engagement.",
+    beat_timestamps: [
+      0.6, 1.2, 1.8, 2.4, 3.0, 3.6, 4.2, 4.8, 5.4, 6.0,
+      6.6, 7.2, 7.8, 8.4, 9.0, 9.6, 10.2, 10.8, 11.4, 12.0,
+      12.6, 13.2, 13.8, 14.4, 15.0, 15.6, 16.2, 16.8, 17.4, 18.0,
+      18.6, 19.2, 19.8, 20.4, 21.0, 21.6, 22.2, 22.8, 23.4, 24.0,
+      24.6, 25.2, 25.8, 26.4, 27.0, 27.6, 28.2, 28.8, 29.4, 30.0
+    ]
+  },
+  {
+    music_id: "song-02",
+    title: "Baul Ektara Melody",
+    artist: "Traditional Bengali (Public Domain)",
+    region: "West Bengal",
+    language: "Bengali",
+    genre: "Baul Folk",
+    era: "1960-1980",
+    audio_url: "/audio/song_baul_folk.wav",
+    duration_seconds: 30,
+    is_active: true,
+    description: "Traditional Baul melody from Bengal.",
+    beat_timestamps: [
+      0.8, 1.6, 2.4, 3.2, 4.0, 4.8, 5.6, 6.4, 7.2, 8.0,
+      8.8, 9.6, 10.4, 11.2, 12.0, 12.8, 13.6, 14.4, 15.2, 16.0,
+      16.8, 17.6, 18.4, 19.2, 20.0, 20.8, 21.6, 22.4, 23.2, 24.0,
+      24.8, 25.6, 26.4, 27.2, 28.0, 28.8, 29.6
+    ]
+  },
+  {
+    music_id: "song-03",
+    title: "Purani Filmi Classic",
+    artist: "Classic Melody (Public Domain)",
+    region: "Pan-India",
+    language: "Hindi",
+    genre: "Classic Film",
+    era: "1960-1975",
+    audio_url: "/audio/song_classic_filmi.wav",
+    duration_seconds: 30,
+    is_active: true,
+    description: "Classic film melody style for nostalgia & memory recall.",
+    beat_timestamps: [
+      0.7, 1.4, 2.1, 2.8, 3.5, 4.2, 4.9, 5.6, 6.3, 7.0,
+      7.7, 8.4, 9.1, 9.8, 10.5, 11.2, 11.9, 12.6, 13.3, 14.0,
+      14.7, 15.4, 16.1, 16.8, 17.5, 18.2, 18.9, 19.6, 20.3, 21.0,
+      21.7, 22.4, 23.1, 23.8, 24.5, 25.2, 25.9, 26.6, 27.3, 28.0,
+      28.7, 29.4
+    ]
+  }
+];

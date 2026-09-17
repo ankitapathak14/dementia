@@ -1,0 +1,243 @@
+[
+  {
+    "id": "329dc6b7-f400-44b0-9231-b489c4520fad",
+    "user_id": "test_patient_p3",
+    "type": "hydration",
+    "glasses": 2,
+    "date": "2026-09-09",
+    "timestamp": "2026-09-09T19:28:08+00:00"
+  },
+  {
+    "id": "cec878e8-3dfd-45cd-a2c6-86e9024cff44",
+    "user_id": "test_patient_p3",
+    "reminder_id": "c85581ac-238b-4eac-85cd-8c50290242dc",
+    "category": "medicine",
+    "completed_at": "2026-09-09T19:28:08+00:00",
+    "date": "2026-09-09",
+    "client_action_id": null
+  },
+  {
+    "id": "d36a2f05-e620-4574-91da-01229d71dde4",
+    "user_id": "test_patient_p3",
+    "type": "hydration",
+    "glasses": 2,
+    "date": "2026-09-09",
+    "timestamp": "2026-09-09T20:13:20+00:00"
+  },
+  {
+    "id": "bfc7ead7-0c89-4c85-a202-d5fe961137d1",
+    "user_id": "test_patient_p3",
+    "reminder_id": "c85581ac-238b-4eac-85cd-8c50290242dc",
+    "category": "medicine",
+    "completed_at": "2026-09-09T20:13:20+00:00",
+    "date": "2026-09-09",
+    "client_action_id": null
+  },
+  {
+    "id": "0311c744-bc34-4272-9f51-bdc58966ce89",
+    "user_id": "test_patient_p3",
+    "type": "hydration",
+    "glasses": 2,
+    "date": "2026-09-09",
+    "timestamp": "2026-09-09T20:20:41+00:00"
+  },
+  {
+    "id": "3f57b83f-a698-4b7a-8ed8-b6017d97ff8f",
+    "user_id": "test_patient_p3",
+    "type": "adherence",
+    "category": "medicine",
+    "title": "Morning Blood Pressure Pill",
+    "status": "completed",
+    "date": "2026-09-09",
+    "timestamp": "2026-09-09T20:20:41+00:00",
+    "client_action_id": null
+  },
+  {
+    "id": "15d6b757-3f25-4f06-bab4-06addb354cf5",
+    "user_id": "test_patient_p3",
+    "type": "hydration",
+    "glasses": 2,
+    "date": "2026-09-09",
+    "timestamp": "2026-09-09T20:21:05+00:00"
+  },
+  {
+    "id": "ccf4fa48-a513-4710-848d-70fda932485e",
+    "user_id": "test_patient_p3",
+    "type": "adherence",
+    "category": "medicine",
+    "title": "Morning Blood Pressure Pill",
+    "status": "completed",
+    "date": "2026-09-09",
+    "timestamp": "2026-09-09T20:21:05+00:00",
+    "client_action_id": null
+  },
+  {
+    "id": "f75bdc47-5782-4ef8-80b0-48a0bcdeb452",
+    "user_id": "test_patient_p3",
+    "type": "hydration",
+    "glasses": 2,
+    "date": "2026-09-09",
+    "timestamp": "2026-09-09T20:24:36+00:00"
+  },
+  {
+    "id": "a3aff885-5273-464e-bf6e-8ac8ed26da32",
+    "user_id": "test_patient_p3",
+    "type": "adherence",
+    "category": "medicine",
+    "title": "Morning Blood Pressure Pill",
+    "status": "completed",
+    "date": "2026-09-09",
+    "timestamp": "2026-09-09T20:24:36+00:00",
+    "client_action_id": null
+  },
+  {
+    "id": "d85fb768-2d15-4760-996b-c89b66eefa8a",
+    "user_id": "test_patient_p3",
+    "type": "hydration",
+    "glasses": 2,
+    "date": "2026-09-09",
+    "timestamp": "2026-09-09T20:27:31+00:00"
+  },
+  {
+    "id": "cc218203-35ad-481d-96b4-cc064ba47f37",
+    "user_id": "test_patient_p3",
+    "type": "adherence",
+    "category": "medicine",
+    "title": "Morning Blood Pressure Pill",
+    "status": "completed",
+    "date": "2026-09-09",
+    "timestamp": "2026-09-09T20:27:31+00:00",
+    "client_action_id": null
+  },
+  {
+    "id": "cdb5a145-6bc6-4122-80a2-fa039dc5d1fa",
+    "user_id": "test_patient_p3",
+    "type": "hydration",
+    "glasses": 2,
+    "date": "2026-09-09",
+    "timestamp": "2026-09-09T20:35:35+00:00"
+  },
+  {
+    "id": "1d662c7a-beaf-4762-9514-07aeeadfe9e8",
+    "user_id": "test_patient_p3",
+    "type": "adherence",
+    "category": "medicine",
+    "title": "Morning Blood Pressure Pill",
+    "status": "completed",
+    "date": "2026-09-09",
+    "timestamp": "2026-09-09T20:35:35+00:00",
+    "client_action_id": null
+  },
+  {
+    "id": "9552adff-5203-441c-a97a-164e2f827b6c",
+    "user_id": "sih-demo-patient-001",
+    "type": "adherence",
+    "category": "medicine",
+    "title": "Donepezil 5mg (\u09ae\u0997\u099c\u09c1\u09f0 \u0994\u09b7\u09a7)",
+    "status": "completed",
+    "date": "2026-09-09",
+    "timestamp": "2026-09-09T20:45:12+00:00",
+    "client_action_id": null
+  },
+  {
+    "id": "15d7cf46-748b-4c18-9024-877cc2b55216",
+    "user_id": "sih-demo-patient-001",
+    "type": "adherence",
+    "category": "medicine",
+    "title": "Donepezil 5mg (\u09ae\u0997\u099c\u09c1\u09f0 \u0994\u09b7\u09a7)",
+    "status": "completed",
+    "date": "2026-09-09",
+    "timestamp": "2026-09-09T20:45:12+00:00",
+    "client_action_id": null
+  },
+  {
+    "id": "7decd9fe-dc15-4323-a04c-eae5648ccc1b",
+    "user_id": "62016f45-d650-4f1e-b21a-065d81d92127",
+    "type": "adherence",
+    "category": "appointment",
+    "title": "Dr. Baruah Neurology Consultation",
+    "status": "completed",
+    "date": "2026-09-10",
+    "timestamp": "2026-09-10T03:46:31+00:00",
+    "client_action_id": null
+  },
+  {
+    "id": "61d11e56-d004-4dc1-854f-feb629c305f6",
+    "user_id": "test_patient_p3",
+    "type": "hydration",
+    "glasses": 2,
+    "date": "2026-09-10",
+    "timestamp": "2026-09-10T18:12:46+00:00"
+  },
+  {
+    "id": "17e346cf-30fc-4518-a670-d725a9ff409e",
+    "user_id": "test_patient_p3",
+    "type": "adherence",
+    "category": "medicine",
+    "title": "Morning Blood Pressure Pill",
+    "status": "completed",
+    "date": "2026-09-10",
+    "timestamp": "2026-09-10T18:12:46+00:00",
+    "client_action_id": null
+  },
+  {
+    "id": "b091e1a2-9472-4fcd-bc40-c202af35fcf4",
+    "user_id": "c3170c78-039d-47a7-8ce1-42a3572f0870",
+    "type": "adherence",
+    "category": "appointment",
+    "title": "Dr. Baruah Neurology Consultation",
+    "status": "completed",
+    "date": "2026-09-10",
+    "timestamp": "2026-09-10T19:58:32+00:00",
+    "client_action_id": null
+  },
+  {
+    "id": "067d3fb2-1b1e-4846-8a6f-fb6f69b1cdd1",
+    "user_id": "c3170c78-039d-47a7-8ce1-42a3572f0870",
+    "type": "adherence",
+    "category": "daily_activity",
+    "title": "Brain Games & Cognitive Training",
+    "status": "completed",
+    "date": "2026-09-10",
+    "timestamp": "2026-09-10T20:25:56+00:00",
+    "client_action_id": null
+  },
+  {
+    "id": "e535fba6-6ec3-43aa-b997-88eb2676a0ed",
+    "user_id": "test_patient_p3",
+    "type": "hydration",
+    "glasses": 2,
+    "date": "2026-09-10",
+    "timestamp": "2026-09-10T21:24:53+00:00"
+  },
+  {
+    "id": "18e2f102-4539-4489-855c-94281c46e05b",
+    "user_id": "test_patient_p3",
+    "type": "adherence",
+    "category": "medicine",
+    "title": "Morning Blood Pressure Pill",
+    "status": "completed",
+    "date": "2026-09-10",
+    "timestamp": "2026-09-10T21:24:53+00:00",
+    "client_action_id": null
+  },
+  {
+    "id": "cc388fd9-254e-4968-adc6-2584e0a8b295",
+    "user_id": "test_patient_p3",
+    "type": "hydration",
+    "glasses": 2,
+    "date": "2026-09-10",
+    "timestamp": "2026-09-10T21:27:29+00:00"
+  },
+  {
+    "id": "32127c9d-8447-4b74-80a9-43e4e8939ca8",
+    "user_id": "test_patient_p3",
+    "type": "adherence",
+    "category": "medicine",
+    "title": "Morning Blood Pressure Pill",
+    "status": "completed",
+    "date": "2026-09-10",
+    "timestamp": "2026-09-10T21:27:29+00:00",
+    "client_action_id": null
+  }
+]
