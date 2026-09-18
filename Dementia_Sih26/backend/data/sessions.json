@@ -137,7 +137,7 @@
   "1be42c93de1c89f8a4925d5eb6b301704ddfbdeba128beb1036dc5346e08b7a9": {
     "user_id": "0ee18b88-7044-4cb4-a438-8f620659a648",
     "created_at": "2026-09-18T18:25:58+00:00",
-    "last_active": "2026-09-18T20:00:54+00:00"
+    "last_active": "2026-09-18T20:01:54+00:00"
   },
   "c923411be828b09f19fb707be254bd351baf63fa0f0944f761e6b1a664b4ca93": {
     "user_id": "test_patient_a_lineage",
@@ -202,7 +202,7 @@
   "400b20721b8ee32c1b9d2735570282de62acec7b952484acf3bcde7de13ae603": {
     "user_id": "dc4424ac-c51f-49a4-ae85-76d136c4dd07",
     "created_at": "2026-09-18T19:10:38+00:00",
-    "last_active": "2026-09-18T20:00:54+00:00"
+    "last_active": "2026-09-18T20:01:54+00:00"
   },
   "09f1a6983a6c3e9db52f991792d2b32ad2ece547ed48d41ba7ee78e4f96dc490": {
     "user_id": "test_wf_patient_001",
