@@ -318,8 +318,11 @@ export default function ProgressPage({ setPage }) {
                   {latestTier.label}
                 </div>
                 {latestComposite != null && (
-                  <div style={{ fontSize: 11, color: "rgba(240,236,227,0.3)", marginTop: 4 }}>
-                    Composite risk score: {latestComposite}/100 (lower = better)
+                  <div
+                    title="Composite performance index derived from measured cognitive domains. It is a monitoring metric and not a medical diagnosis."
+                    style={{ fontSize: 11, color: "rgba(240,236,227,0.4)", marginTop: 4, cursor: "help" }}
+                  >
+                    Cognitive Performance Index: {latestComposite}/100 ℹ️
                   </div>
                 )}
               </div>

@@ -18,6 +18,7 @@ from core.clinical_config import (
     SAFE_OUTPUT_LANGUAGE,
     compute_confidence_score,
     get_education_correction,
+    map_education_to_years,
 )
 from core.ml_engine import (
     compute_confidence_interval,
@@ -39,11 +40,13 @@ from models.schemas import (
     MLBehavioralAnalysis,
     MLClinicalReference,
     MLCombinedIndicator,
+    MLOverallAttention,
 )
 from services import auth_service
 from services.ai_service import (
     _prob_to_level,
     build_feature_vector,
+    compute_feature_provenance,
     extract_executive_features,
     extract_memory_features,
     extract_motor_features,
@@ -110,6 +113,16 @@ async def analyze(payload: AnalyzeRequest, authorization: Optional[str] = Header
             executive_features,
             motor_features,
         )
+        feature_provenance, categorized_provenance, provenance_counts = compute_feature_provenance(
+            audio_b64=payload.speech_audio,
+            speech=payload.speech,
+            memory_results=payload.memory_results,
+            memory=payload.memory,
+            reaction_times=payload.reaction_times,
+            reaction=payload.reaction,
+            stroop=payload.stroop,
+            tap=payload.tap,
+        )
     except Exception as exc:
         raise HTTPException(status_code=422, detail=f"Processing error: {exc}") from exc
 
@@ -140,14 +153,17 @@ async def analyze(payload: AnalyzeRequest, authorization: Optional[str] = Header
         historical_sessions=hist_feature_vectors,
         min_history=3,
     )
+    behavioral_analysis["feature_provenance"] = feature_provenance
 
     # ── LAYER B: Clinical Reference Model ──────────────────────────────────────
     clinical_inputs = None
-    if payload.profile and payload.profile.age is not None:
-        clinical_inputs = {
-            "Age": float(payload.profile.age),
-            "EDUC": float(payload.profile.education_level * 4) if payload.profile.education_level else 12.0,
-        }
+    if payload.clinical_inputs is not None:
+        clinical_inputs = dict(payload.clinical_inputs)
+    elif payload.profile and payload.profile.age is not None:
+        mapped_educ = map_education_to_years(payload.profile.education_level)
+        clinical_inputs = {"Age": float(payload.profile.age)}
+        if mapped_educ is not None:
+            clinical_inputs["EDUC"] = mapped_educ
     clinical_analysis = predict_clinical_reference(clinical_inputs)
 
     # ── MULTI-MODAL SIGNAL FUSION ──────────────────────────────────────────────
@@ -176,10 +192,17 @@ async def analyze(payload: AnalyzeRequest, authorization: Optional[str] = Header
     attention_variability_index = round(std_rt / mean_rt, 4) if mean_rt > 0 else 0.0
 
     # Structured ML Analysis payload
+    behavioral_model = MLBehavioralAnalysis(**behavioral_analysis)
+    clinical_model = MLClinicalReference(**clinical_analysis)
+    combined_model = MLCombinedIndicator(**fusion_result["combined_indicator"])
+    overall_attention_model = MLOverallAttention(**fusion_result["overall_attention"])
+
     ml_analysis_obj = MLAnalysis(
-        behavioral=MLBehavioralAnalysis(**behavioral_analysis),
-        clinical_reference=MLClinicalReference(**clinical_analysis),
-        combined_indicator=MLCombinedIndicator(**fusion_result["combined_indicator"]),
+        behavioral_deviation=behavioral_model,
+        clinical_reference=clinical_model,
+        overall_attention=overall_attention_model,
+        behavioral=behavioral_model,
+        combined_indicator=combined_model,
     )
 
     # ── Result Persistence ─────────────────────────────────────────────────────
@@ -205,6 +228,8 @@ async def analyze(payload: AnalyzeRequest, authorization: Optional[str] = Header
         },
         "attention_variability_index": attention_variability_index,
         "feature_vector": feature_vector.model_dump(),
+        "feature_provenance": feature_provenance,
+        "provenance_summary": provenance_counts,
         "ml_analysis": ml_analysis_obj.model_dump(),
         "disclaimer": DISCLAIMER,
     }
@@ -254,6 +279,11 @@ async def analyze(payload: AnalyzeRequest, authorization: Optional[str] = Header
         model_validation=model_validation,
         feature_vector=feature_vector,
         attention_variability_index=attention_variability_index,
+        feature_provenance=feature_provenance,
+        measured_features=categorized_provenance["measured"],
+        derived_features=categorized_provenance["derived"],
+        defaulted_features=categorized_provenance["defaulted"],
+        provenance_summary=provenance_counts,
         disclaimer=DISCLAIMER,
     )
 
@@ -282,7 +312,7 @@ def get_patient_results(patient_id: str, authorization: str = Header(...)) -> di
     from routers.consent_api import check_patient_consent
 
     # 1. Enforce doctor/caregiver care relationship
-    if not auth_service.verify_doctor_patient_relationship(care_member["id"], patient_id):
+    if not auth_service.verify_care_member_patient_access(care_member, patient_id):
         record(
             event="phi.access_denied",
             actor_id=care_member["id"],

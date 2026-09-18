@@ -5,17 +5,27 @@ import { getPatients, getUser } from "../services/api";
 
 const LIME = "#C8F135";
 
-function riskColor(level) {
-  return level === "High" ? T.red : level === "Moderate" ? T.amber : level === "Low" ? T.green : "#444";
+function priorityColor(level) {
+  return level === "Elevated" ? T.red : level === "Moderate" ? T.amber : level === "Routine" ? T.green : "#444";
 }
 
-function topRisk(p) {
+function getAttentionPriority(p) {
   const r = p.lastResult;
-  if (!r) return null;
-  const levels = [r.risk_levels?.alzheimers, r.risk_levels?.dementia, r.risk_levels?.parkinsons];
-  if (levels.includes("High"))     return "High";
-  if (levels.includes("Moderate")) return "Moderate";
-  return "Low";
+  if (!r || (p.sessionCount ?? 0) < 3 || r.ml_analysis?.behavioral_deviation?.status === "insufficient_history") return null;
+  const oa = r.ml_analysis?.overall_attention;
+  if (oa?.available && oa?.label) {
+    const lbl = oa.label.toLowerCase();
+    if (lbl.includes("high") || lbl.includes("elevated")) return "Elevated";
+    if (lbl.includes("moderate")) return "Moderate";
+    return "Routine";
+  }
+  const bd = r.ml_analysis?.behavioral_deviation;
+  if (bd?.severity === "severe" || bd?.severity === "significant") return "Elevated";
+  if (bd?.severity === "mild") return "Moderate";
+  if (bd?.severity === "none") return "Routine";
+  if ((r.composite_risk_score ?? 0) >= 65) return "Elevated";
+  if ((r.composite_risk_score ?? 0) >= 35) return "Moderate";
+  return "Routine";
 }
 
 export default function DoctorHome({ setPage, setSelectedPatient }) {
@@ -65,13 +75,13 @@ export default function DoctorHome({ setPage, setSelectedPatient }) {
   useEffect(() => { loadData(); }, []);
 
   const withResults = patients.filter(p => p.lastResult);
-  const highRisk    = patients.filter(p => topRisk(p) === "High");
-  const modRisk     = patients.filter(p => topRisk(p) === "Moderate");
-  const noTest      = patients.filter(p => !p.lastResult);
+  const elevatedPatients = patients.filter(p => getAttentionPriority(p) === "Elevated");
+  const moderatePatients = patients.filter(p => getAttentionPriority(p) === "Moderate");
+  const noTest           = patients.filter(p => !p.lastResult || (p.sessionCount ?? 0) < 3);
 
   // Averages across all patients who have results
-  const avg = (key) => withResults.length === 0 ? 0
-    : Math.round(withResults.reduce((s, p) => s + (p.lastResult[key] || 0) * 100, 0) / withResults.length);
+  const avgDomain = (key) => withResults.length === 0 ? 0
+    : Math.round(withResults.reduce((s, p) => s + (p.lastResult[key] || 0), 0) / withResults.length);
 
   return (
     <div>
@@ -96,10 +106,10 @@ export default function DoctorHome({ setPage, setSelectedPatient }) {
           {/* Stat cards */}
           <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 14, marginBottom: 24 }}>
             {[
-              { label: "Total Patients",   val: patients.length,     icon: "👥", c: T.cream  },
-              { label: "⚠️ High Risk",     val: highRisk.length,     icon: "●",  c: T.red    },
-              { label: "Moderate Risk",    val: modRisk.length,      icon: "●",  c: T.amber   },
-              { label: "Pending Test",     val: noTest.length,       icon: "⏳", c: "#555"   },
+              { label: "Total Patients",     val: patients.length,          icon: "👥", c: T.cream  },
+              { label: "Elevated Attention", val: elevatedPatients.length, icon: "●",  c: T.red    },
+              { label: "Moderate Attention", val: moderatePatients.length,  icon: "●",  c: T.amber  },
+              { label: "Pending Assessment", val: noTest.length,            icon: "⏳", c: "#555"   },
             ].map(s => (
               <DarkCard key={s.label} style={{ padding: 22 }}>
                 <div style={{ fontSize: 18, color: s.c, marginBottom: 6 }}>{s.icon}</div>
@@ -154,23 +164,23 @@ export default function DoctorHome({ setPage, setSelectedPatient }) {
             </DarkCard>
           )}
 
-          {/* Average neural pattern anomaly scores across all patients */}
+          {/* Average Cognitive Domain Scores across all assessed patients */}
           {withResults.length > 0 && (
             <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 14, marginBottom: 24 }}>
               {[
-                { key: "alzheimers_risk", label: "Avg. Memory Deviation Index", color: "#a78bfa" },
-                { key: "dementia_risk",   label: "Avg. Executive Drift Score",  color: T.amber   },
-                { key: "parkinsons_risk", label: "Avg. Motor Anomaly Index",    color: T.blue    },
+                { key: "memory_score",    label: "Avg. Memory Performance",    color: "#a78bfa" },
+                { key: "executive_score", label: "Avg. Executive Performance", color: T.amber   },
+                { key: "motor_score",     label: "Avg. Motor Performance",     color: T.blue    },
               ].map(d => {
-                const pct = avg(d.key);
+                const score = avgDomain(d.key);
                 return (
                   <DarkCard key={d.key} style={{ padding: 22, border: `1px solid ${d.color}20` }}>
                     <div style={{ fontSize: 11, color: T.creamFaint, textTransform: "uppercase", letterSpacing: 1, marginBottom: 12 }}>{d.label}</div>
                     <div style={{ fontFamily: "'DM Sans',sans-serif", fontWeight: 900, fontSize: 44, color: d.color, lineHeight: 1, marginBottom: 10 }}>
-                      {pct}<span style={{ fontSize: 16, color: "#555" }}>%</span>
+                      {score}<span style={{ fontSize: 16, color: "#555" }}>/100</span>
                     </div>
                     <div style={{ height: 5, borderRadius: 3, background: "rgba(255,255,255,0.07)" }}>
-                      <div style={{ height: "100%", width: `${pct}%`, background: d.color, borderRadius: 3 }} />
+                      <div style={{ height: "100%", width: `${score}%`, background: d.color, borderRadius: 3 }} />
                     </div>
                     <div style={{ fontSize: 11, color: "#555", marginTop: 8 }}>across {withResults.length} assessed patient{withResults.length !== 1 ? "s" : ""}</div>
                   </DarkCard>
@@ -179,16 +189,17 @@ export default function DoctorHome({ setPage, setSelectedPatient }) {
             </div>
           )}
 
-          {/* High risk patients — urgent attention */}
-          {highRisk.length > 0 && (
+          {/* Elevated priority patients — urgent attention */}
+          {elevatedPatients.length > 0 && (
             <DarkCard style={{ padding: 24, marginBottom: 20, border: `1px solid ${T.red}25` }} hover={false}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-                <div style={{ fontWeight: 700, color: T.red, fontSize: 14 }}>⚠️ High Risk Patients — Needs Attention</div>
+                <div style={{ fontWeight: 700, color: T.red, fontSize: 14 }}>⚠️ Elevated Attention Patients — Needs Review</div>
                 <Btn small onClick={() => setPage("patients")}>View All →</Btn>
               </div>
               <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                {highRisk.map(p => {
+                {elevatedPatients.map(p => {
                   const last = p.lastResult;
+                  const bdSeverity = last?.ml_analysis?.behavioral_deviation?.severity;
                   return (
                     <div key={p.id} onClick={() => { setSelectedPatient(p); setPage("patient-detail"); }}
                       style={{ display: "flex", alignItems: "center", gap: 14, padding: "12px 16px", borderRadius: 12, background: "rgba(232,64,64,0.06)", border: "1px solid rgba(232,64,64,0.15)", cursor: "pointer" }}>
@@ -201,9 +212,12 @@ export default function DoctorHome({ setPage, setSelectedPatient }) {
                       </div>
                       {last && (
                         <div style={{ display: "flex", gap: 16, fontSize: 12, color: T.creamFaint }}>
-                          <span>Mem: <strong style={{ color: "#a78bfa" }}>{Math.round((last.alzheimers_risk || 0) * 100)}%</strong></span>
-                          <span>Exec: <strong style={{ color: T.amber }}>{Math.round((last.dementia_risk || 0) * 100)}%</strong></span>
-                          <span>Motor: <strong style={{ color: T.blue }}>{Math.round((last.parkinsons_risk || 0) * 100)}%</strong></span>
+                          <span>Mem: <strong style={{ color: "#a78bfa" }}>{Math.round(last.memory_score || 0)}</strong></span>
+                          <span>Exec: <strong style={{ color: T.amber }}>{Math.round(last.executive_score || 0)}</strong></span>
+                          <span>Motor: <strong style={{ color: T.blue }}>{Math.round(last.motor_score || 0)}</strong></span>
+                          {bdSeverity && (
+                            <span>Deviation: <strong style={{ color: bdSeverity === "severe" ? T.red : T.amber }}>{bdSeverity.charAt(0).toUpperCase() + bdSeverity.slice(1)}</strong></span>
+                          )}
                         </div>
                       )}
                       <span style={{ color: T.red, fontSize: 13, fontWeight: 700 }}>View →</span>

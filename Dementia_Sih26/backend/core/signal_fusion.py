@@ -3,15 +3,17 @@ NeuroAid — core/signal_fusion.py
 ==================================
 Multi-Modal Cognitive Signal Fusion Layer
 
-Combines independent signals ONLY when both modalities are available:
+Combines independent signals ONLY when both modalities are genuinely available:
 - Signal 1: Behavioral Anomaly Signal (Layer A, IsolationForest on 18 cognitive features)
 - Signal 2: Clinical Reference Signal (Layer B, OASIS-trained Logistic Regression)
 
-Safety Principles:
+Safety & Semantic Principles:
+- NEVER interprets behavioral anomaly scores as dementia probabilities.
 - NEVER combines a signal with itself.
-- If only behavioral data exists -> returns behavioral results only.
-- If only clinical data exists -> returns clinical results only.
-- If both exist -> combines via documented weighted linear fusion.
+- If both modalities are available, weighted fusion is retained ONLY as an operational
+  heuristic attention indicator ("heuristic_multimodal_attention_score").
+- NEVER calls the combined output a "dementia probability", "Alzheimer's probability",
+  or "clinical risk probability".
 """
 
 from __future__ import annotations
@@ -26,127 +28,161 @@ def fuse_cognitive_signals(
     clinical_weight: float = 0.5,
 ) -> Dict[str, Any]:
     """
-    Combines behavioral performance anomaly and clinical reference signals.
-
-    Parameters:
-        behavioral_anomaly_result: Output from evaluate_behavioral_anomaly()
-        clinical_reference_result: Output from predict_clinical_reference()
-        behavioral_weight: Weight assigned to behavioral anomaly score (default 0.5)
-        clinical_weight: Weight assigned to clinical reference probability (default 0.5)
+    Fuses behavioral deviation and clinical reference signals into an operational attention indicator.
 
     Returns:
-        Dict containing:
-            behavioral_signal: Optional dict with status, score, severity
-            clinical_reference_signal: Optional dict with status, probability, risk_band
-            combined_indicator: Dict with available (bool), value (float or None), label, method
-            fusion_method: str describing fusion protocol
+        behavioral_deviation:
+            score: Optional[float]
+            severity: str ("none" | "mild" | "significant" | "severe")
+            status: str
+            anomaly_detected: bool
+            top_deviating_features: list
+        clinical_reference:
+            probability: Optional[float]
+            risk_band: Optional[str] ("Low" | "Moderate" | "High" | None)
+            status: str ("available" | "insufficient_input" | "model_not_available")
+            missing_features: list
+            explanations: list
+        overall_attention:
+            available: bool
+            label: Optional[str]
+            method: str
+            heuristic_multimodal_attention_score: Optional[float]
     """
     has_behavioral = False
     beh_score: Optional[float] = None
-    beh_summary = None
+    b_status = "insufficient_history"
+    b_severity = "none"
+    anomaly_detected = False
+    top_deviations = []
 
     if behavioral_anomaly_result:
-        b_status = behavioral_anomaly_result.get("status")
-        if b_status == "sufficient_history" and behavioral_anomaly_result.get("anomaly_score") is not None:
+        b_status = behavioral_anomaly_result.get("status", "insufficient_history")
+        b_severity = behavioral_anomaly_result.get("severity", "none")
+        anomaly_detected = behavioral_anomaly_result.get("anomaly_detected", False)
+        top_deviations = behavioral_anomaly_result.get("top_deviating_features", [])
+        if b_status in ["preliminary_baseline", "longitudinal_baseline"] and behavioral_anomaly_result.get("anomaly_score") is not None:
             has_behavioral = True
             beh_score = float(behavioral_anomaly_result["anomaly_score"])
-        beh_summary = {
-            "status": b_status,
-            "anomaly_detected": behavioral_anomaly_result.get("anomaly_detected", False),
-            "severity": behavioral_anomaly_result.get("severity", "none"),
-            "anomaly_score": beh_score,
-            "top_deviating_features": behavioral_anomaly_result.get("top_deviating_features", []),
-        }
+
+    behavioral_deviation = {
+        "score": beh_score,
+        "severity": b_severity,
+        "status": b_status,
+        "anomaly_detected": anomaly_detected,
+        "top_deviating_features": top_deviations,
+    }
 
     has_clinical = False
     clin_prob: Optional[float] = None
-    clin_summary = None
+    clin_status = "insufficient_input"
+    clin_risk_band: Optional[str] = None
+    missing_features = []
+    provided_features = []
+    explanations = []
 
     if clinical_reference_result:
-        c_status = clinical_reference_result.get("status")
-        if c_status == "available" and clinical_reference_result.get("probability") is not None:
+        clin_status = clinical_reference_result.get("status", "insufficient_input")
+        missing_features = clinical_reference_result.get("missing_features", [])
+        provided_features = clinical_reference_result.get("provided_features", [])
+        explanations = clinical_reference_result.get("explanations", [])
+        if clin_status == "available" and clinical_reference_result.get("probability") is not None:
             has_clinical = True
             clin_prob = float(clinical_reference_result["probability"])
-        clin_summary = {
-            "status": c_status,
-            "model": clinical_reference_result.get("model", "OASIS_LogisticRegression"),
-            "probability": clin_prob,
-            "risk_band": clinical_reference_result.get("risk_band"),
-            "explanations": clinical_reference_result.get("explanations", []),
-        }
+            clin_risk_band = clinical_reference_result.get("risk_band")
 
-    # Signal fusion logic
+    clinical_reference = {
+        "status": clin_status,
+        "probability": clin_prob,
+        "risk_band": clin_risk_band,
+        "model": "OASIS_LogisticRegression",
+        "missing_features": missing_features,
+        "provided_features": provided_features,
+        "explanations": explanations,
+    }
+
+    # Signal fusion: only when BOTH independent modalities are genuinely present
     if has_behavioral and has_clinical and beh_score is not None and clin_prob is not None:
-        # Both independent signals are present
         norm_w_beh = behavioral_weight / (behavioral_weight + clinical_weight)
         norm_w_clin = clinical_weight / (behavioral_weight + clinical_weight)
-        combined_val = (norm_w_beh * beh_score) + (norm_w_clin * clin_prob)
-        combined_val = round(max(0.0, min(1.0, combined_val)), 4)
+        attention_score = round((norm_w_beh * beh_score) + (norm_w_clin * clin_prob), 4)
 
-        if combined_val < 0.35:
-            label = "Low Risk Indicator"
-        elif combined_val < 0.65:
-            label = "Moderate Risk Indicator"
+        if attention_score < 0.35:
+            label = "Routine Cognitive Monitoring"
+        elif attention_score < 0.65:
+            label = "Moderate Attention Priority"
         else:
-            label = "Elevated Risk Indicator"
+            label = "Elevated Attention Priority"
 
-        combined_indicator = {
+        overall_attention = {
             "available": True,
-            "value": combined_val,
             "label": label,
-            "fusion_method": f"WeightedLinearCombination({norm_w_beh:.2f}*Behavioral + {norm_w_clin:.2f}*Clinical)",
+            "method": "heuristic_multimodal_attention_score",
+            "heuristic_multimodal_attention_score": attention_score,
             "components": {
-                "behavioral_anomaly_score": beh_score,
-                "clinical_reference_prob": clin_prob,
+                "behavioral_deviation_score": beh_score,
+                "clinical_reference_probability": clin_prob,
             },
+            "disclaimer": (
+                "This heuristic attention score is an operational monitoring metric combining behavioral "
+                "performance deviation with clinical reference cohort probability. It is NOT a clinical diagnosis, "
+                "dementia probability, Alzheimer's probability, or medical risk probability."
+            ),
         }
-        fusion_method = "Multi-Modal Weighted Linear Fusion"
 
     elif has_behavioral and beh_score is not None:
-        # Behavioral only
-        combined_indicator = {
+        overall_attention = {
             "available": False,
-            "value": None,
             "label": None,
-            "fusion_method": "None (Awaiting clinical reference inputs for multi-modal fusion)",
+            "method": "None (Awaiting complete clinical reference feature inputs)",
+            "heuristic_multimodal_attention_score": None,
             "components": {
-                "behavioral_anomaly_score": beh_score,
-                "clinical_reference_prob": None,
+                "behavioral_deviation_score": beh_score,
+                "clinical_reference_probability": None,
             },
+            "disclaimer": "Behavioral deviation only. Clinical reference inputs incomplete.",
         }
-        fusion_method = "Behavioral Modality Only"
 
     elif has_clinical and clin_prob is not None:
-        # Clinical only
-        combined_indicator = {
+        overall_attention = {
             "available": False,
-            "value": None,
             "label": None,
-            "fusion_method": "None (Awaiting sufficient behavioral baseline history for multi-modal fusion)",
+            "method": "None (Awaiting sufficient behavioral baseline history)",
+            "heuristic_multimodal_attention_score": None,
             "components": {
-                "behavioral_anomaly_score": None,
-                "clinical_reference_prob": clin_prob,
+                "behavioral_deviation_score": None,
+                "clinical_reference_probability": clin_prob,
             },
+            "disclaimer": "Clinical reference only. Longitudinal behavioral baseline not established.",
         }
-        fusion_method = "Clinical Modality Only"
 
     else:
-        # Neither signal available
-        combined_indicator = {
+        overall_attention = {
             "available": False,
-            "value": None,
             "label": None,
-            "fusion_method": "None (Insufficient data across both modalities)",
+            "method": "None (Insufficient data across both modalities)",
+            "heuristic_multimodal_attention_score": None,
             "components": {
-                "behavioral_anomaly_score": None,
-                "clinical_reference_prob": None,
+                "behavioral_deviation_score": None,
+                "clinical_reference_probability": None,
             },
+            "disclaimer": "Both behavioral history and clinical reference inputs are incomplete.",
         }
-        fusion_method = "Insufficient Modalities"
 
     return {
-        "behavioral_signal": beh_summary,
-        "clinical_reference_signal": clin_summary,
-        "combined_indicator": combined_indicator,
-        "fusion_method": fusion_method,
+        # Task 5 canonical semantics
+        "behavioral_deviation": behavioral_deviation,
+        "clinical_reference": clinical_reference,
+        "overall_attention": overall_attention,
+        # Backwards-compatible aliases
+        "behavioral_signal": behavioral_deviation,
+        "clinical_reference_signal": clinical_reference,
+        "combined_indicator": {
+            "available": overall_attention["available"],
+            "value": overall_attention["heuristic_multimodal_attention_score"],
+            "label": overall_attention["label"],
+            "fusion_method": overall_attention["method"],
+            "heuristic_multimodal_attention_score": overall_attention["heuristic_multimodal_attention_score"],
+        },
+        "fusion_method": overall_attention["method"],
     }

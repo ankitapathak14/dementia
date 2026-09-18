@@ -5,16 +5,27 @@ import { getPatientResults } from "../services/api";
 
 const LIME = "#C8F135";
 
-function riskColor(level) {
-  return level === "High" ? T.red : level === "Moderate" ? T.amber : level === "Low" ? T.green : "#444";
+function priorityColor(level) {
+  return level === "Elevated" ? T.red : level === "Moderate" ? T.amber : level === "Routine" ? T.green : "#94a3b8";
 }
 
-function topRisk(result) {
+function getAttentionPriority(result) {
   if (!result) return null;
-  const levels = [result.risk_levels?.alzheimers, result.risk_levels?.dementia, result.risk_levels?.parkinsons];
-  if (levels.includes("High"))     return "High";
-  if (levels.includes("Moderate")) return "Moderate";
-  return "Low";
+  const bd = result.ml_analysis?.behavioral_deviation;
+  if (bd?.status === "insufficient_history") return "Pending Assessment";
+  const oa = result.ml_analysis?.overall_attention;
+  if (oa?.available && oa?.label) {
+    const lbl = oa.label.toLowerCase();
+    if (lbl.includes("high") || lbl.includes("elevated")) return "Elevated";
+    if (lbl.includes("moderate")) return "Moderate";
+    return "Routine";
+  }
+  if (bd?.severity === "severe" || bd?.severity === "significant") return "Elevated";
+  if (bd?.severity === "mild") return "Moderate";
+  if (bd?.severity === "none") return "Routine";
+  if ((result.composite_risk_score ?? 0) >= 65) return "Elevated";
+  if ((result.composite_risk_score ?? 0) >= 35) return "Moderate";
+  return "Routine";
 }
 
 function BarChart({ data, labels, color }) {
@@ -42,15 +53,15 @@ export default function PatientDetail({ patient, setPage }) {
     getPatientResults(patient.id)
       .then(r => {
         setResults(r || []);
-        // Pre-fill note based on risk
+        // Pre-fill note based on attention priority
         const last = r?.[r.length - 1];
         if (last) {
-          const risk = topRisk(last);
-          setNote(risk === "High"
-            ? `Patient ${patient.full_name} shows significant cognitive risk signals. Recommend referral to a neurologist for clinical evaluation.`
-            : risk === "Moderate"
-              ? `Patient ${patient.full_name} shows moderate cognitive signals. Schedule follow-up assessment in 30 days.`
-              : `Patient ${patient.full_name} shows low cognitive risk. Continue routine monitoring every 3 months.`
+          const priority = getAttentionPriority(last);
+          setNote(priority === "Elevated"
+            ? `Patient ${patient.full_name} shows elevated cognitive attention priority. Recommend referral to a neurologist or neuropsychologist for comprehensive evaluation.`
+            : priority === "Moderate"
+              ? `Patient ${patient.full_name} shows moderate cognitive variation signals. Schedule follow-up assessment in 30 days.`
+              : `Patient ${patient.full_name} shows routine cognitive status. Continue standard longitudinal monitoring.`
           );
         }
       })
@@ -63,8 +74,8 @@ export default function PatientDetail({ patient, setPage }) {
   );
 
   const last     = results[results.length - 1] || null;
-  const risk     = topRisk(last);
-  const rc       = riskColor(risk);
+  const priority = getAttentionPriority(last);
+  const rc       = priorityColor(priority);
   const initials = (patient.full_name || "?").split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase();
 
   // Chart data: last 7 overall scores
@@ -87,11 +98,13 @@ export default function PatientDetail({ patient, setPage }) {
     ? Math.round(domains.reduce((s, d) => s + d.v, 0) / domains.length)
     : null;
 
-  const diseases = [
-    { key: "alzheimers", label: "Alzheimer's", color: "#a78bfa" },
-    { key: "dementia",   label: "Dementia",    color: T.amber   },
-    { key: "parkinsons", label: "Parkinson's", color: T.blue    },
-  ];
+  // ML Analysis derived status
+  const devSeverity = last?.ml_analysis?.behavioral_deviation?.severity || "none";
+  const devSeverityLabel = devSeverity.charAt(0).toUpperCase() + devSeverity.slice(1);
+  const devSeverityColor = devSeverity === "severe" || devSeverity === "significant" ? T.red : devSeverity === "mild" ? T.amber : T.green;
+
+  const clinStatus = last?.ml_analysis?.clinical_reference?.status === "available" ? "Available" : "Insufficient input";
+  const clinColor = clinStatus === "Available" ? T.green : T.amber;
 
   return (
     <div>
@@ -113,7 +126,7 @@ export default function PatientDetail({ patient, setPage }) {
             {patient.age && <span style={{ color: T.creamFaint, fontSize: 13 }}>Age {patient.age}</span>}
             <span style={{ color: T.creamFaint, fontSize: 13 }}>·</span>
             <span style={{ color: T.creamFaint, fontSize: 13 }}>{patient.email}</span>
-            {risk && <><span style={{ color: T.creamFaint, fontSize: 13 }}>·</span><Badge level={risk} /></>}
+            {priority && <><span style={{ color: T.creamFaint, fontSize: 13 }}>·</span><Badge level={priority} /></>}
           </div>
         </div>
         <div style={{ marginLeft: "auto", display: "flex", gap: 10 }}>
@@ -141,7 +154,7 @@ export default function PatientDetail({ patient, setPage }) {
 
             {/* Overall score card */}
             <DarkCard style={{ padding: 28 }} hover={false}>
-              <div style={{ fontSize: 11, color: T.creamFaint, letterSpacing: 1, textTransform: "uppercase", marginBottom: 14 }}>Overall Cognitive Score</div>
+              <div style={{ fontSize: 11, color: T.creamFaint, letterSpacing: 1, textTransform: "uppercase", marginBottom: 14 }}>Overall Cognitive Performance</div>
               <div style={{ display: "flex", alignItems: "flex-end", gap: 10, marginBottom: 20 }}>
                 <span style={{ fontFamily: "'Instrument Serif',serif", fontSize: 72, color: T.cream, lineHeight: 1 }}>{overallScore}</span>
                 <span style={{ color: T.creamFaint, fontSize: 18, paddingBottom: 8 }}>/100</span>
@@ -174,37 +187,51 @@ export default function PatientDetail({ patient, setPage }) {
             </DarkCard>
           </div>
 
-          {/* Row 2: Disease Risk Cards */}
+          {/* Row 2: Attention Priority, Behavioral Deviation, Clinical Reference Cards */}
           <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 16, marginBottom: 20 }}>
-            {diseases.map(d => {
-              const prob  = Math.round((last[`${d.key}_risk`] || 0) * 100);
-              const level = last.risk_levels?.[d.key] || "Low";
-              const lvlColor = riskColor(level);
+            {/* Attention Priority Card */}
+            <DarkCard style={{ padding: 24, border: `1px solid ${rc}30` }} hover={false}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+                <div style={{ fontWeight: 700, color: T.cream, fontSize: 14 }}>Overall Attention Priority</div>
+                <span style={{ background: `${rc}18`, color: rc, padding: "3px 10px", borderRadius: 20, fontSize: 11, fontWeight: 700, border: `1px solid ${rc}33` }}>{priority}</span>
+              </div>
+              <div style={{ fontFamily: "'DM Sans',sans-serif", fontWeight: 800, fontSize: 26, color: rc, lineHeight: 1.2, marginBottom: 8 }}>
+                {priority} Attention
+              </div>
+              <p style={{ color: T.creamFaint, fontSize: 12, lineHeight: 1.5, margin: 0 }}>
+                {priority === "Elevated" ? "Multi-modal cognitive metrics indicate elevated priority for clinical review." : priority === "Moderate" ? "Moderate cognitive variance observed across baseline assessments." : "Performance metrics align with expected longitudinal baselines."}
+              </p>
+            </DarkCard>
 
-              // History of this disease risk across sessions
-              const history = sessions.map(r => Math.round((r[`${d.key}_risk`] || 0) * 100));
+            {/* Behavioral Deviation Card */}
+            <DarkCard style={{ padding: 24, border: `1px solid ${devSeverityColor}30` }} hover={false}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+                <div style={{ fontWeight: 700, color: T.cream, fontSize: 14 }}>Behavioral Deviation</div>
+                <span style={{ background: `${devSeverityColor}18`, color: devSeverityColor, padding: "3px 10px", borderRadius: 20, fontSize: 11, fontWeight: 700, border: `1px solid ${devSeverityColor}33` }}>{devSeverityLabel}</span>
+              </div>
+              <div style={{ fontFamily: "'DM Sans',sans-serif", fontWeight: 800, fontSize: 26, color: devSeverityColor, lineHeight: 1.2, marginBottom: 8 }}>
+                {devSeverityLabel}
+              </div>
+              <p style={{ color: T.creamFaint, fontSize: 12, lineHeight: 1.5, margin: 0 }}>
+                {last?.ml_analysis?.behavioral_deviation?.status === "insufficient_history"
+                  ? "Preliminary session; longitudinal baseline calibration in progress."
+                  : `IsolationForest deviation severity: ${devSeverityLabel}.`}
+              </p>
+            </DarkCard>
 
-              return (
-                <DarkCard key={d.key} style={{ padding: 24, border: `1px solid ${d.color}20` }} hover={false}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-                    <div style={{ fontWeight: 700, color: T.cream, fontSize: 15 }}>{d.label}</div>
-                    <span style={{ background: `${lvlColor}18`, color: lvlColor, padding: "3px 10px", borderRadius: 20, fontSize: 11, fontWeight: 700, border: `1px solid ${lvlColor}33` }}>{level}</span>
-                  </div>
-                  <div style={{ fontFamily: "'DM Sans',sans-serif", fontWeight: 900, fontSize: 48, color: d.color, lineHeight: 1, marginBottom: 8 }}>
-                    {prob}<span style={{ fontSize: 18, color: "#555" }}>%</span>
-                  </div>
-                  <div style={{ height: 6, borderRadius: 3, background: "rgba(255,255,255,0.07)", marginBottom: 12 }}>
-                    <div style={{ height: "100%", width: `${prob}%`, background: d.color, borderRadius: 3 }} />
-                  </div>
-                  {history.length > 1 && (
-                    <>
-                      <div style={{ fontSize: 10, color: "#555", marginBottom: 6, textTransform: "uppercase", letterSpacing: 0.5 }}>Trend</div>
-                      <MiniChart data={history} color={d.color} height={36} />
-                    </>
-                  )}
-                </DarkCard>
-              );
-            })}
+            {/* Clinical Reference Card */}
+            <DarkCard style={{ padding: 24, border: `1px solid ${clinColor}30` }} hover={false}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+                <div style={{ fontWeight: 700, color: T.cream, fontSize: 14 }}>Clinical Reference (OASIS)</div>
+                <span style={{ background: `${clinColor}18`, color: clinColor, padding: "3px 10px", borderRadius: 20, fontSize: 11, fontWeight: 700, border: `1px solid ${clinColor}33` }}>{clinStatus}</span>
+              </div>
+              <div style={{ fontFamily: "'DM Sans',sans-serif", fontWeight: 800, fontSize: 22, color: clinColor, lineHeight: 1.2, marginBottom: 8 }}>
+                {clinStatus}
+              </div>
+              <p style={{ color: T.creamFaint, fontSize: 11, lineHeight: 1.5, margin: 0 }}>
+                {last?.ml_analysis?.clinical_reference?.message || "Clinical reference model unavailable for this session because required research-model inputs are incomplete."}
+              </p>
+            </DarkCard>
           </div>
 
           {/* Row 3: Session history chart */}
@@ -224,26 +251,33 @@ export default function PatientDetail({ patient, setPage }) {
               <table style={{ width: "100%", borderCollapse: "collapse" }}>
                 <thead>
                   <tr style={{ borderBottom: "1px solid rgba(255,255,255,0.07)" }}>
-                    {["Date", "Overall", "Speech", "Memory", "Reaction", "Alzheimer's", "Dementia", "Parkinson's"].map(h => (
+                    {["Date", "Overall Attention", "Behavioral Deviation", "Memory", "Reaction", "Executive", "Speech", "Motor"].map(h => (
                       <th key={h} style={{ padding: "10px 16px", textAlign: "left", fontSize: 10, fontWeight: 600, color: T.creamFaint, letterSpacing: 1, textTransform: "uppercase" }}>{h}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
                   {[...results].reverse().map((r, i) => {
-                    const overall = Math.round([r.speech_score, r.memory_score, r.reaction_score, r.executive_score, r.motor_score].reduce((a, b) => a + b, 0) / 5);
+                    const sessPriority = getAttentionPriority(r);
+                    const sessCol = priorityColor(sessPriority);
+                    const devSev = r.ml_analysis?.behavioral_deviation?.severity || (sessPriority === "Elevated" ? "Significant" : sessPriority === "Moderate" ? "Mild" : "None");
+                    const devSevLabel = devSev.charAt(0).toUpperCase() + devSev.slice(1);
                     return (
                       <tr key={i} style={{ borderBottom: i < results.length - 1 ? "1px solid rgba(255,255,255,0.05)" : "none" }}>
                         <td style={{ padding: "12px 16px", color: T.creamFaint, fontSize: 13 }}>
                           {new Date(r.timestamp).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
                         </td>
-                        <td style={{ padding: "12px 16px", fontWeight: 700, color: overall >= 70 ? T.green : overall >= 50 ? T.amber : T.red, fontSize: 14 }}>{overall}</td>
-                        <td style={{ padding: "12px 16px", color: T.cream, fontSize: 13 }}>{Math.round(r.speech_score)}</td>
-                        <td style={{ padding: "12px 16px", color: T.cream, fontSize: 13 }}>{Math.round(r.memory_score)}</td>
-                        <td style={{ padding: "12px 16px", color: T.cream, fontSize: 13 }}>{Math.round(r.reaction_score)}</td>
-                        <td style={{ padding: "12px 16px", color: "#a78bfa", fontSize: 13, fontWeight: 600 }}>{Math.round((r.alzheimers_risk || 0) * 100)}% <span style={{ color: riskColor(r.risk_levels?.alzheimers), fontSize: 10 }}>({r.risk_levels?.alzheimers})</span></td>
-                        <td style={{ padding: "12px 16px", color: T.amber, fontSize: 13, fontWeight: 600 }}>{Math.round((r.dementia_risk || 0) * 100)}% <span style={{ color: riskColor(r.risk_levels?.dementia), fontSize: 10 }}>({r.risk_levels?.dementia})</span></td>
-                        <td style={{ padding: "12px 16px", color: T.blue, fontSize: 13, fontWeight: 600 }}>{Math.round((r.parkinsons_risk || 0) * 100)}% <span style={{ color: riskColor(r.risk_levels?.parkinsons), fontSize: 10 }}>({r.risk_levels?.parkinsons})</span></td>
+                        <td style={{ padding: "12px 16px", fontWeight: 700, color: sessCol, fontSize: 13 }}>
+                          <span style={{ background: `${sessCol}18`, color: sessCol, padding: "3px 8px", borderRadius: 12, fontSize: 11, border: `1px solid ${sessCol}33` }}>
+                            {sessPriority}
+                          </span>
+                        </td>
+                        <td style={{ padding: "12px 16px", color: T.cream, fontSize: 13 }}>{devSevLabel}</td>
+                        <td style={{ padding: "12px 16px", color: T.green, fontSize: 13, fontWeight: 600 }}>{Math.round(r.memory_score ?? 0)}</td>
+                        <td style={{ padding: "12px 16px", color: T.blue, fontSize: 13, fontWeight: 600 }}>{Math.round(r.reaction_score ?? 0)}</td>
+                        <td style={{ padding: "12px 16px", color: "#a78bfa", fontSize: 13, fontWeight: 600 }}>{Math.round(r.executive_score ?? 0)}</td>
+                        <td style={{ padding: "12px 16px", color: T.red, fontSize: 13, fontWeight: 600 }}>{Math.round(r.speech_score ?? 0)}</td>
+                        <td style={{ padding: "12px 16px", color: T.amber, fontSize: 13, fontWeight: 600 }}>{Math.round(r.motor_score ?? 0)}</td>
                       </tr>
                     );
                   })}
@@ -294,29 +328,78 @@ export default function PatientDetail({ patient, setPage }) {
               </div>
             </div>
 
-            {/* Feature Importance Bars */}
+            {/* Feature Provenance */}
+            {(() => {
+              const prov = last.provenance_summary || last.ml_analysis?.provenance_summary || { measured_count: 18, derived_count: 0, defaulted_count: 0, total_features: 18 };
+              return (
+                <div style={{ background: "rgba(255,255,255,0.03)", padding: "14px 16px", borderRadius: 12, border: "1px solid rgba(255,255,255,0.06)", marginBottom: 20 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8, flexWrap: "wrap", gap: 6 }}>
+                    <div style={{ fontSize: 11, color: T.creamFaint, textTransform: "uppercase", letterSpacing: 0.5, fontWeight: 700 }}>
+                      18-Feature Cognitive Vector Provenance
+                    </div>
+                    <span style={{ fontSize: 11, color: "#94a3b8", background: "rgba(255,255,255,0.05)", padding: "2px 8px", borderRadius: 6 }}>
+                      Total Canonical Features: {prov.total_features ?? 18}
+                    </span>
+                  </div>
+                  <div style={{ display: "flex", gap: 16, flexWrap: "wrap", alignItems: "center" }}>
+                    <span style={{ color: T.green, fontSize: 13, fontWeight: 700, display: "flex", alignItems: "center", gap: 5 }}>
+                      <span style={{ width: 8, height: 8, borderRadius: "50%", background: T.green, display: "inline-block" }} />
+                      {prov.measured_count ?? 18} Measured
+                    </span>
+                    <span style={{ color: "#a78bfa", fontSize: 13, fontWeight: 600, display: "flex", alignItems: "center", gap: 5 }}>
+                      <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#a78bfa", display: "inline-block" }} />
+                      {prov.derived_count ?? 0} Derived
+                    </span>
+                    <span style={{ color: T.amber, fontSize: 13, fontWeight: 600, display: "flex", alignItems: "center", gap: 5 }}>
+                      <span style={{ width: 8, height: 8, borderRadius: "50%", background: T.amber, display: "inline-block" }} />
+                      {prov.defaulted_count ?? 0} Defaulted
+                    </span>
+                  </div>
+                </div>
+              );
+            })()}
+
+            {/* Top Deviating Features */}
             <div style={{ marginBottom: 20 }}>
               <div style={{ fontSize: 13, fontWeight: 700, color: T.cream, marginBottom: 12 }}>
-                Explainable AI Feature Importance (Attribution to Risk Score)
+                Top Deviating Features (Longitudinal Behavioral Anomaly Z-Scores)
               </div>
-              <div style={{ display: "grid", gap: 10 }}>
-                {[
-                  { name: "Word Recall Accuracy (Delayed Recall)", val: 38, key: "word_recall_accuracy" },
-                  { name: "Speech Hesitation & Pause Ratio", val: 26, key: "speech_hesitation_ratio" },
-                  { name: "Reaction Time Variability Index", val: 21, key: "reaction_time_variability" },
-                  { name: "Stroop Interference Latency", val: 15, key: "stroop_interference" },
-                ].map(feat => (
-                  <div key={feat.key} style={{ background: "rgba(255,255,255,0.02)", padding: "10px 14px", borderRadius: 10 }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6, fontSize: 12 }}>
-                      <span style={{ color: "#e2e8f0" }}>{feat.name}</span>
-                      <strong style={{ color: "#c8f135" }}>{feat.val}% relative contribution</strong>
+              {(() => {
+                const topDevs = last.ml_analysis?.behavioral_deviation?.top_deviating_features || [];
+                if (topDevs.length === 0) {
+                  return (
+                    <div style={{ padding: "14px 16px", background: "rgba(255,255,255,0.02)", borderRadius: 10, color: T.creamFaint, fontSize: 12, border: "1px solid rgba(255,255,255,0.05)" }}>
+                      {last.ml_analysis?.behavioral_deviation?.status === "insufficient_history"
+                        ? "Preliminary session; longitudinal baseline calibration in progress (requires minimum 3 completed sessions)."
+                        : "No significant feature deviations detected relative to longitudinal baseline."}
                     </div>
-                    <div style={{ height: 6, borderRadius: 3, background: "rgba(255,255,255,0.06)" }}>
-                      <div style={{ height: "100%", width: `${feat.val}%`, background: "linear-gradient(90deg, #c8f135, #a3e635)", borderRadius: 3 }} />
-                    </div>
+                  );
+                }
+                return (
+                  <div style={{ display: "grid", gap: 10 }}>
+                    {topDevs.map((feat, idx) => {
+                      const z = typeof feat.z_score === "number" ? feat.z_score : 0;
+                      const absZ = Math.abs(z);
+                      const barPct = Math.min(100, Math.max(12, Math.round((absZ / 3.5) * 100)));
+                      const isElevated = z > 0;
+                      const featName = (feat.feature || "").replace(/_/g, " ");
+                      return (
+                        <div key={idx} style={{ background: "rgba(255,255,255,0.02)", padding: "10px 14px", borderRadius: 10, border: "1px solid rgba(255,255,255,0.04)" }}>
+                          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6, fontSize: 12, flexWrap: "wrap", gap: 4 }}>
+                            <span style={{ color: "#e2e8f0", textTransform: "capitalize", fontWeight: 600 }}>{featName}</span>
+                            <span style={{ color: isElevated ? "#fca5a5" : "#93c5fd", fontWeight: 700 }}>
+                              {feat.direction || (isElevated ? "elevated" : "reduced")} (z = {z > 0 ? `+${z}` : z})
+                            </span>
+                          </div>
+                          <div style={{ height: 6, borderRadius: 3, background: "rgba(255,255,255,0.06)" }}>
+                            <div style={{ height: "100%", width: `${barPct}%`, background: isElevated ? "linear-gradient(90deg, #f87171, #ef4444)" : "linear-gradient(90deg, #60a5fa, #3b82f6)", borderRadius: 3 }} />
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
-                ))}
-              </div>
+                );
+              })()}
             </div>
 
             {/* Non-diagnostic statutory notice */}

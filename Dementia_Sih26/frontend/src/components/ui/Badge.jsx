@@ -2,9 +2,11 @@ import { T } from "../../utils/helpers";
 
 export default function Badge({ level }) {
   const m = {
-    Low:      { bg: "rgba(74,222,128,0.10)",  border: "rgba(74,222,128,0.22)",  color: T.green,   label: "Low Risk"      },
-    Moderate: { bg: "rgba(245,158,11,0.10)",  border: "rgba(245,158,11,0.22)",  color: T.amber,   label: "Moderate Risk" },
-    High:     { bg: "rgba(232,64,64,0.12)",   border: "rgba(232,64,64,0.25)",   color: "#ff7070", label: "High Risk"     },
+    Low:      { bg: "rgba(74,222,128,0.10)",  border: "rgba(74,222,128,0.22)",  color: T.green,   label: "Routine Attention"  },
+    Moderate: { bg: "rgba(245,158,11,0.10)",  border: "rgba(245,158,11,0.22)",  color: T.amber,   label: "Moderate Attention" },
+    High:     { bg: "rgba(232,64,64,0.12)",   border: "rgba(232,64,64,0.25)",   color: "#ff7070", label: "Elevated Attention" },
+    Routine:  { bg: "rgba(74,222,128,0.10)",  border: "rgba(74,222,128,0.22)",  color: T.green,   label: "Routine Attention"  },
+    Elevated: { bg: "rgba(232,64,64,0.12)",   border: "rgba(232,64,64,0.25)",   color: "#ff7070", label: "Elevated Attention" },
   };
   const s = m[level] || m.Low;
   return (

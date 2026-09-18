@@ -1,0 +1,50 @@
+[
+  {
+    "id": "rel-demo-cg-sih-demo-patient-001",
+    "patient_id": "sih-demo-patient-001",
+    "patient_name": "Biren Das (Demo Patient)",
+    "caregiver_id": "sih-demo-caregiver-001",
+    "caregiver_name": "Sreejeta Sen (Caregiver)",
+    "caregiver_email": "sreejeta.sen@sihdemo.local",
+    "status": "connected",
+    "access_granted": true,
+    "created_at": "2026-09-18T19:42:10+00:00",
+    "updated_at": "2026-09-18T19:42:10+00:00"
+  },
+  {
+    "id": "rel-demo-cg-sih-demo-patient-a",
+    "patient_id": "sih-demo-patient-a",
+    "patient_name": "Arun Sharma (Patient A - Stable)",
+    "caregiver_id": "sih-demo-caregiver-001",
+    "caregiver_name": "Sreejeta Sen (Caregiver)",
+    "caregiver_email": "sreejeta.sen@sihdemo.local",
+    "status": "connected",
+    "access_granted": true,
+    "created_at": "2026-09-18T19:42:10+00:00",
+    "updated_at": "2026-09-18T19:42:10+00:00"
+  },
+  {
+    "id": "rel-demo-cg-sih-demo-patient-b",
+    "patient_id": "sih-demo-patient-b",
+    "patient_name": "Bhavna Baruah (Patient B - Memory Change)",
+    "caregiver_id": "sih-demo-caregiver-001",
+    "caregiver_name": "Sreejeta Sen (Caregiver)",
+    "caregiver_email": "sreejeta.sen@sihdemo.local",
+    "status": "connected",
+    "access_granted": true,
+    "created_at": "2026-09-18T19:42:10+00:00",
+    "updated_at": "2026-09-18T19:42:10+00:00"
+  },
+  {
+    "id": "rel-demo-cg-sih-demo-patient-d",
+    "patient_id": "sih-demo-patient-d",
+    "patient_name": "Deepali Saikia (Patient D - Multi-Domain)",
+    "caregiver_id": "sih-demo-caregiver-001",
+    "caregiver_name": "Sreejeta Sen (Caregiver)",
+    "caregiver_email": "sreejeta.sen@sihdemo.local",
+    "status": "connected",
+    "access_granted": true,
+    "created_at": "2026-09-18T19:42:10+00:00",
+    "updated_at": "2026-09-18T19:42:10+00:00"
+  }
+]

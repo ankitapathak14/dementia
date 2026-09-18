@@ -67,19 +67,20 @@ def reset_and_seed_demo() -> Dict[str, Any]:
 
     doctor = {
         "id": DEMO_DOCTOR_ID,
-        "full_name": "Dr. Rupjyoti Hazarika",
-        "email": "dr.hazarika@sihdemo.local",
+        "full_name": "Dr. Tanisha",
+        "email": "dr.tanisha@sihdemo.local",
+        "aliases": ["tanisha@gmail.com", "dr.hazarika@sihdemo.local"],
         "password_hash": hash_password("DemoPassword#2026"),
         "role": "doctor",
         "specialization": "Cognitive Neurologist",
-        "hospital": "Guwahati Medical College & Hospital (GMCH)",
-        "location": "Guwahati, Assam",
+        "hospital": "Apollo Hospitals",
+        "location": "Kolkata, India",
         "years_experience": 18,
         "consultation_mode": "Both",
         "bio": "Specialist in neurodegenerative screening, MCI longitudinal monitoring, and community cognitive health.",
-        "max_patients": 20,
-        "current_patients": 2,
-        "patient_list": [DEMO_PATIENT_ID, DEMO_PATIENT_2_ID],
+        "max_patients": 50,
+        "current_patients": 6,
+        "patient_list": [DEMO_PATIENT_ID, DEMO_PATIENT_2_ID, "sih-demo-patient-a", "sih-demo-patient-b", "sih-demo-patient-c", "sih-demo-patient-d", "sih-demo-patient-e"],
         "pending_requests": [],
         "created_at": now,
         "last_login": now,
@@ -87,14 +88,15 @@ def reset_and_seed_demo() -> Dict[str, Any]:
 
     caregiver = {
         "id": DEMO_CAREGIVER_ID,
-        "full_name": "Ananya Das (Caregiver)",
-        "email": "ananya.das@sihdemo.local",
+        "full_name": "Sreejeta Sen (Caregiver)",
+        "email": "sreejeta.sen@sihdemo.local",
+        "aliases": ["sreejeta@example.com", "sreejeta@demo.com", "ananya.das@sihdemo.local"],
         "password_hash": hash_password("DemoPassword#2026"),
         "role": "caregiver",
         "specialization": "Family Caregiver",
-        "hospital": "Home Care Network, Assam",
-        "location": "Guwahati, Assam",
-        "patient_list": [DEMO_PATIENT_ID, DEMO_PATIENT_2_ID],
+        "hospital": "Home Care Network",
+        "location": "Kolkata, India",
+        "patient_list": [DEMO_PATIENT_ID],
         "created_at": now,
         "last_login": now,
     }
@@ -553,18 +555,38 @@ def reset_and_seed_demo() -> Dict[str, Any]:
     alerts_data.pop(DEMO_PATIENT_2_ID, None)
     caregiver_alerts_store.write(alerts_data)
 
+    # 9. Seed Longitudinal Cognitive Personas A–E via Real Application Pipeline
+    from services.demo_seeder import seed_longitudinal_demo_pipeline
+    pipeline_res = seed_longitudinal_demo_pipeline()
+
     record(
         event="demo.seeded",
         actor_id="sih_system",
         outcome="success",
-        metadata={"patient_id": DEMO_PATIENT_ID, "patient_2_id": DEMO_PATIENT_2_ID, "doctor_id": DEMO_DOCTOR_ID},
+        metadata={
+            "patient_id": DEMO_PATIENT_ID,
+            "patient_2_id": DEMO_PATIENT_2_ID,
+            "doctor_id": DEMO_DOCTOR_ID,
+            "longitudinal_personas": list(pipeline_res.get("seeded_patients", {}).keys()),
+        },
     )
 
     return {
         "status": "ok",
-        "message": "SIH deterministic demo data initialized successfully.",
+        "message": "SIH deterministic demo data and longitudinal personas initialized successfully.",
         "patient": {"id": DEMO_PATIENT_ID, "name": patient["full_name"], "token": DEMO_PATIENT_TOKEN},
         "patient_inactive": {"id": DEMO_PATIENT_2_ID, "name": patient_2["full_name"]},
         "doctor": {"id": DEMO_DOCTOR_ID, "name": doctor["full_name"], "token": DEMO_DOCTOR_TOKEN},
         "caregiver": {"id": DEMO_CAREGIVER_ID, "name": caregiver["full_name"], "token": DEMO_CAREGIVER_TOKEN},
+        "longitudinal_personas": pipeline_res.get("seeded_patients"),
     }
+
+
+@router.post("/seed-personas")
+def seed_personas_endpoint() -> Dict[str, Any]:
+    """
+    Dedicated endpoint to trigger real-pipeline seeding for Personas A through E.
+    """
+    from services.demo_seeder import seed_longitudinal_demo_pipeline
+    return seed_longitudinal_demo_pipeline()
+

@@ -171,14 +171,11 @@ def test_behavioral_anomaly_detection():
         "tap_interval_std": 25.0,
     }
 
-    history = []
-    for i in range(5):
-        session = {k: v + np.random.normal(0, 0.5) for k, v in baseline_session.items()}
-        history.append(session)
+    history = [dict(baseline_session) for _ in range(5)]
 
     # Normal session
     normal_res = evaluate_behavioral_anomaly(baseline_session, history, min_history=3)
-    assert normal_res["status"] == "sufficient_history"
+    assert normal_res["status"] == "longitudinal_baseline"
     assert normal_res["anomaly_detected"] is False
     assert normal_res["severity"] == "none"
     assert normal_res["anomaly_score"] is not None
@@ -193,7 +190,7 @@ def test_behavioral_anomaly_detection():
     anomalous_session["stroop_error_rate"] = 0.50          # severe error spike
 
     anomaly_res = evaluate_behavioral_anomaly(anomalous_session, history, min_history=3)
-    assert anomaly_res["status"] == "sufficient_history"
+    assert anomaly_res["status"] == "longitudinal_baseline"
     assert anomaly_res["anomaly_detected"] is True
     assert anomaly_res["severity"] in ["mild", "significant", "severe"]
     assert len(anomaly_res["top_deviating_features"]) > 0
@@ -327,22 +324,27 @@ def test_no_fake_validation_metrics():
 
 def test_no_self_combination_in_hybrid_risk():
     # When both signals exist independently
-    beh = {"status": "sufficient_history", "anomaly_score": 0.70, "anomaly_detected": True, "severity": "significant"}
+    beh = {"status": "preliminary_baseline", "anomaly_score": 0.70, "anomaly_detected": True, "severity": "significant"}
     clin = {"status": "available", "probability": 0.40, "risk_band": "Moderate"}
     fused = fuse_cognitive_signals(beh, clin)
     assert fused["combined_indicator"]["available"] is True
     assert fused["combined_indicator"]["value"] == 0.55
-    assert "WeightedLinearCombination" in fused["combined_indicator"]["fusion_method"]
+    assert "heuristic_multimodal_attention_score" in fused["combined_indicator"]["fusion_method"]
+    assert fused["overall_attention"]["available"] is True
+    assert fused["overall_attention"]["heuristic_multimodal_attention_score"] == 0.55
+    assert fused["overall_attention"]["method"] == "heuristic_multimodal_attention_score"
 
     # When only behavioral exists
     fused_beh_only = fuse_cognitive_signals(beh, None)
     assert fused_beh_only["combined_indicator"]["available"] is False
     assert fused_beh_only["combined_indicator"]["value"] is None
+    assert fused_beh_only["overall_attention"]["available"] is False
 
     # When only clinical exists
     fused_clin_only = fuse_cognitive_signals(None, clin)
     assert fused_clin_only["combined_indicator"]["available"] is False
     assert fused_clin_only["combined_indicator"]["value"] is None
+    assert fused_clin_only["overall_attention"]["available"] is False
 
     # Self combination guard in compute_hybrid_risk helper
     assert compute_hybrid_risk(0.65, 0.65) == 0.65  # returns value directly without false combination
@@ -384,10 +386,226 @@ def test_api_backward_compatibility():
 
     # Multi-Modal ML Layers
     assert response.ml_analysis is not None
-    assert response.ml_analysis.behavioral.status in ["sufficient_history", "insufficient_history"]
-    assert response.ml_analysis.clinical_reference.status in ["available", "insufficient_input"]
+    assert response.ml_analysis.behavioral.status in [
+        "sufficient_history",
+        "insufficient_history",
+        "preliminary_baseline",
+        "longitudinal_baseline",
+    ]
+    assert response.ml_analysis.clinical_reference.status == "insufficient_input"
+    assert response.ml_analysis.clinical_reference.probability is None
+    assert "MMSE" in response.ml_analysis.clinical_reference.missing_features
     assert response.ml_analysis.combined_indicator is not None
+    assert response.ml_analysis.behavioral_deviation is not None
+    assert response.ml_analysis.overall_attention is not None
 
     # Honest uncertainty
     assert response.uncertainty is not None
     assert response.uncertainty["available"] is False
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 13. Clinical Inference Refuses Incomplete OASIS Feature Input
+# ─────────────────────────────────────────────────────────────────────────────
+
+def test_clinical_inference_refuses_incomplete_oasis_features():
+    # Empty input
+    res_empty = predict_clinical_reference({})
+    assert res_empty["status"] == "insufficient_input"
+    assert res_empty["probability"] is None
+    assert res_empty["risk_band"] == "unavailable"
+    assert set(res_empty["missing_features"]) == set(CLINICAL_FEATURE_NAMES)
+    assert res_empty["provided_features"] == []
+
+    # Partial input: Age and MMSE only
+    res_partial = predict_clinical_reference({"Age": 72.0, "MMSE": 28.0})
+    assert res_partial["status"] == "insufficient_input"
+    assert res_partial["probability"] is None
+    assert "EDUC" in res_partial["missing_features"]
+    assert "eTIV" in res_partial["missing_features"]
+    assert "nWBV" in res_partial["missing_features"]
+    assert "ASF" in res_partial["missing_features"]
+    assert "SES" in res_partial["missing_features"]
+    assert "sex" in res_partial["missing_features"]
+    assert "Age" in res_partial["provided_features"]
+    assert "MMSE" in res_partial["provided_features"]
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 14. Age + Education Alone Does Not Produce Clinical Probability
+# ─────────────────────────────────────────────────────────────────────────────
+
+def test_age_and_education_alone_does_not_produce_probability():
+    res = predict_clinical_reference({"Age": 75.0, "EDUC": 16.0})
+    assert res["status"] == "insufficient_input"
+    assert res["probability"] is None
+    assert res["risk_band"] == "unavailable"
+    assert set(res["missing_features"]) == {"SES", "MMSE", "eTIV", "nWBV", "ASF", "sex"}
+    assert set(res["provided_features"]) == {"Age", "EDUC"}
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 15. Invalid Education Mapping Is Not Silently Converted
+# ─────────────────────────────────────────────────────────────────────────────
+
+def test_invalid_education_mapping_not_silently_converted():
+    from core.clinical_config import map_education_to_years
+
+    # Invalid integers or floats
+    assert map_education_to_years(0) is None
+    assert map_education_to_years(-1) is None
+    assert map_education_to_years(6) is None
+    assert map_education_to_years(99) is None
+    assert map_education_to_years(None) is None
+
+    # Invalid string categories
+    assert map_education_to_years("Kindergarten") is None
+    assert map_education_to_years("random_text") is None
+    assert map_education_to_years("") is None
+
+    # Valid ordinal 1–5 integer levels
+    assert map_education_to_years(1) == 6.0
+    assert map_education_to_years(2) == 8.0
+    assert map_education_to_years(3) == 12.0
+    assert map_education_to_years(4) == 16.0
+    assert map_education_to_years(5) == 18.0
+
+    # Valid categorical profile strings
+    assert map_education_to_years("High School") == 12.0
+    assert map_education_to_years("Some College") == 14.0
+    assert map_education_to_years("Bachelor's") == 16.0
+    assert map_education_to_years("Master's") == 18.0
+    assert map_education_to_years("Doctoral") == 20.0
+    assert map_education_to_years("Professional Degree") == 20.0
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 16. Converted Target Construction Is Documented and Tested
+# ─────────────────────────────────────────────────────────────────────────────
+
+def test_converted_target_construction_documented_and_tested():
+    import pandas as pd
+    _, metadata = load_model_artifacts()
+
+    # Documentation check in metadata
+    assert "target_definition" in metadata
+    td = metadata["target_definition"]
+    assert "Nondemented = 0" in td
+    assert "Demented = 1" in td
+    assert "Converted visits are labeled using visit-level CDR" in td
+    assert "CDR >= 0.5 -> 1" in td
+    assert "CDR == 0 -> 0" in td
+    assert "CDR is used only for target construction and never as X" in td
+
+    # Functional test: Converted visit labeling and CDR dropping
+    mock_data = pd.DataFrame([
+        {"Subject ID": "OAS2_0001", "Group": "Nondemented", "CDR": 0.0, "Age": 70, "EDUC": 12, "SES": 2.0, "MMSE": 29.0, "eTIV": 1500, "nWBV": 0.75, "ASF": 1.1, "M/F": "M"},
+        {"Subject ID": "OAS2_0002", "Group": "Demented", "CDR": 0.5, "Age": 75, "EDUC": 16, "SES": 1.0, "MMSE": 22.0, "eTIV": 1400, "nWBV": 0.70, "ASF": 1.2, "M/F": "F"},
+        {"Subject ID": "OAS2_0003", "Group": "Converted", "CDR": 0.0, "Age": 72, "EDUC": 14, "SES": 3.0, "MMSE": 28.0, "eTIV": 1450, "nWBV": 0.73, "ASF": 1.15, "M/F": "M"},
+        {"Subject ID": "OAS2_0003", "Group": "Converted", "CDR": 0.5, "Age": 74, "EDUC": 14, "SES": 3.0, "MMSE": 24.0, "eTIV": 1460, "nWBV": 0.71, "ASF": 1.16, "M/F": "M"},
+    ])
+
+    X, y, groups = prepare_clinical_dataset(mock_data, handle_converted="visit_cdr")
+    assert "CDR" not in X.columns
+    # The Converted visit with CDR=0.0 must be 0
+    assert y.iloc[2] == 0
+    # The Converted visit with CDR=0.5 must be 1
+    assert y.iloc[3] == 1
+    assert y.iloc[0] == 0
+    assert y.iloc[1] == 1
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 17. Behavioral Anomaly Score Never Described as Dementia Probability
+# ─────────────────────────────────────────────────────────────────────────────
+
+def test_behavioral_score_never_described_as_dementia_probability():
+    current_fv = extract_raw_vector_dict({})
+    history = [current_fv for _ in range(5)]
+    res = evaluate_behavioral_anomaly(current_fv, history, min_history=3)
+
+    # Must NOT have dementia risk keys
+    assert "dementia_probability" not in res
+    assert "alzheimers_probability" not in res
+    assert "clinical_probability" not in res
+
+    # Score description must clearly state it is behavioral deviation, not dementia probability
+    assert "score_description" in res
+    desc = res["score_description"].lower()
+    assert "behavioral deviation" in desc
+    assert "not a dementia diagnosis" in desc or "not a dementia" in desc
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 18. Multimodal Fusion Labeled Heuristic Attention
+# ─────────────────────────────────────────────────────────────────────────────
+
+def test_multimodal_fusion_labeled_heuristic_attention():
+    beh = {
+        "status": "longitudinal_baseline",
+        "anomaly_score": 0.60,
+        "anomaly_detected": True,
+        "severity": "mild",
+    }
+    clin = {
+        "status": "available",
+        "probability": 0.45,
+        "risk_band": "Moderate",
+    }
+
+    fused = fuse_cognitive_signals(beh, clin)
+    assert "overall_attention" in fused
+    oa = fused["overall_attention"]
+    assert oa["available"] is True
+    assert oa["method"] == "heuristic_multimodal_attention_score"
+    assert "heuristic_multimodal_attention_score" in oa
+    assert oa["heuristic_multimodal_attention_score"] == round(0.5 * 0.60 + 0.5 * 0.45, 4)
+
+    # Must NOT describe combined indicator as clinical dementia/alzheimer probability
+    assert "dementia" not in oa["label"].lower()
+    assert "alzheimer" not in oa["label"].lower()
+    assert "clinical risk" not in oa["label"].lower()
+    assert "attention" in oa["label"].lower()
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 19. Tuple Import in ml/clinical_model
+# ─────────────────────────────────────────────────────────────────────────────
+
+def test_tuple_import_works():
+    import ml.clinical_model as cm
+    assert hasattr(cm, "Tuple")
+    from typing import Tuple as TypingTuple
+    assert cm.Tuple is TypingTuple
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 20. Longitudinal History Session Classification Tiers
+# ─────────────────────────────────────────────────────────────────────────────
+
+def test_history_session_classification_tiers():
+    fv = extract_raw_vector_dict({})
+
+    # 0, 1, 2 sessions -> insufficient_history
+    res0 = evaluate_behavioral_anomaly(fv, [], min_history=3)
+    assert res0["status"] == "insufficient_history"
+
+    res1 = evaluate_behavioral_anomaly(fv, [fv], min_history=3)
+    assert res1["status"] == "insufficient_history"
+
+    res2 = evaluate_behavioral_anomaly(fv, [fv, fv], min_history=3)
+    assert res2["status"] == "insufficient_history"
+
+    # 3, 4 sessions -> preliminary_baseline
+    res3 = evaluate_behavioral_anomaly(fv, [fv, fv, fv], min_history=3)
+    assert res3["status"] == "preliminary_baseline"
+
+    res4 = evaluate_behavioral_anomaly(fv, [fv, fv, fv, fv], min_history=3)
+    assert res4["status"] == "preliminary_baseline"
+
+    # 5+ sessions -> longitudinal_baseline
+    res5 = evaluate_behavioral_anomaly(fv, [fv, fv, fv, fv, fv], min_history=3)
+    assert res5["status"] == "longitudinal_baseline"
+
+    res6 = evaluate_behavioral_anomaly(fv, [fv] * 6, min_history=3)
+    assert res6["status"] == "longitudinal_baseline"

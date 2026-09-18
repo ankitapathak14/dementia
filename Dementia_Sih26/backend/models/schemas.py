@@ -76,6 +76,7 @@ class AnalyzeRequest(BaseModel):
     profile: Optional[UserProfile] = None
     conditions: Optional[MedicalConditions] = None
     fatigue: Optional[FatigueFlags] = None
+    clinical_inputs: Optional[Dict[str, Any]] = None
 
 # ── Feature vector (18 features) ──────────────────────────────────────────────
 
@@ -117,6 +118,8 @@ class MLBehavioralAnalysis(BaseModel):
     top_deviating_features: List[Dict[str, Any]] = Field(default_factory=list)
     baseline_comparison: Dict[str, Any] = Field(default_factory=dict)
     terminology: str = "Cognitive Performance Deviation"
+    score_description: Optional[str] = None
+    feature_provenance: Optional[Dict[str, str]] = None
     message: Optional[str] = None
 
 class MLClinicalReference(BaseModel):
@@ -124,20 +127,34 @@ class MLClinicalReference(BaseModel):
     model: str = "OASIS_LogisticRegression"
     probability: Optional[float] = None
     risk_band: Optional[str] = None
+    missing_features: List[str] = Field(default_factory=list)
+    provided_features: List[str] = Field(default_factory=list)
     explanations: List[Dict[str, Any]] = Field(default_factory=list)
     message: Optional[str] = None
     research_disclaimer: Optional[str] = None
+
+class MLOverallAttention(BaseModel):
+    available: bool = False
+    label: Optional[str] = None
+    method: Optional[str] = None
+    heuristic_multimodal_attention_score: Optional[float] = None
+    components: Optional[Dict[str, Any]] = None
+    disclaimer: Optional[str] = None
 
 class MLCombinedIndicator(BaseModel):
     available: bool = False
     value: Optional[float] = None
     label: Optional[str] = None
     fusion_method: Optional[str] = None
+    heuristic_multimodal_attention_score: Optional[float] = None
     components: Optional[Dict[str, Any]] = None
 
 class MLAnalysis(BaseModel):
-    behavioral: MLBehavioralAnalysis
+    behavioral_deviation: MLBehavioralAnalysis
     clinical_reference: MLClinicalReference
+    overall_attention: MLOverallAttention
+    # Backwards-compatible aliases
+    behavioral: MLBehavioralAnalysis
     combined_indicator: MLCombinedIndicator
 
 # ── Response (V4 / V5) ────────────────────────────────────────────────────────
@@ -186,9 +203,14 @@ class AnalyzeResponse(BaseModel):
     # V4 model validation
     model_validation: Optional[Dict[str, Any]] = None
 
-    # Feature transparency
+    # Feature transparency & data provenance
     feature_vector: Optional[FeatureVector] = None
     attention_variability_index: Optional[float] = None
+    feature_provenance: Optional[Dict[str, str]] = None
+    measured_features: Optional[List[str]] = None
+    derived_features: Optional[List[str]] = None
+    defaulted_features: Optional[List[str]] = None
+    provenance_summary: Optional[Dict[str, Any]] = None
 
     disclaimer: str = (
         "⚠️ This is a behavioral screening tool only. "

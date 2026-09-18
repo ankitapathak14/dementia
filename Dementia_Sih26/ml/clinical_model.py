@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import json
 import os
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 import numpy as np
 import pandas as pd
 
@@ -69,6 +69,7 @@ def get_clinical_model_validation_metrics() -> Dict[str, Any]:
     metrics = metadata["metrics"]
     return {
         "status": "available",
+        "metric_type": "OASIS research cohort cross-validation metrics",
         "dataset": metadata.get("dataset_name", "OASIS Longitudinal"),
         "validation_protocol": metadata.get("validation_protocol", "StratifiedGroupKFold on Subject ID"),
         "training_sample_count": metadata.get("training_sample_count"),
@@ -81,8 +82,10 @@ def get_clinical_model_validation_metrics() -> Dict[str, Any]:
         "f1": metrics.get("f1"),
         "confusion_matrix": metrics.get("confusion_matrix"),
         "note": (
-            "Cross-validated out-of-fold empirical metrics on OASIS longitudinal cohort. "
-            "Grouped by Subject ID to eliminate longitudinal visit leakage."
+            "OASIS research cohort cross-validation metrics: Evaluated using 5-fold StratifiedGroupKFold "
+            "grouped on Subject ID to prevent longitudinal visit leakage. "
+            "These metrics reflect the OASIS research dataset and must NOT be cited as "
+            "NeuroAid clinical accuracy or patient diagnostic accuracy."
         ),
     }
 
@@ -91,15 +94,13 @@ def predict_clinical_reference(clinical_inputs: Optional[Dict[str, Any]]) -> Dic
     """
     Run inference on clinical inputs using the OASIS reference model.
 
-    Expected fields in clinical_inputs:
-    - Age (e.g. 60-95)
-    - EDUC (years of education, e.g. 12-20)
-    - SES (socioeconomic status 1-5)
-    - MMSE (Mini-Mental State Exam score 0-30)
-    - eTIV (Estimated total intracranial volume)
-    - nWBV (Normalized whole brain volume)
-    - ASF (Atlas scaling factor)
-    - sex ('M', 'F', 1, 0)
+    Safety & Scientific Integrity:
+    - Validated OASIS inference strictly requires all 8 features:
+      Age, EDUC, SES, MMSE, eTIV, nWBV, ASF, sex.
+    - Clinically meaningful variables (MMSE, eTIV, nWBV, ASF, SES, sex) are NEVER
+      silently imputed for application inference. If the required OASIS feature set
+      is incomplete, returns status='insufficient_input' with missing_features.
+    - Age + Education alone will NOT generate a clinical probability.
     """
     if not is_model_available():
         return {
@@ -108,29 +109,55 @@ def predict_clinical_reference(clinical_inputs: Optional[Dict[str, Any]]) -> Dic
             "model": "OASIS_LogisticRegression",
             "probability": None,
             "risk_band": None,
+            "missing_features": CLINICAL_FEATURE_NAMES,
             "explanations": [],
         }
 
-    if not clinical_inputs:
+    if not clinical_inputs or not isinstance(clinical_inputs, dict):
         return {
             "status": "insufficient_input",
-            "message": "No clinical reference parameters provided.",
+            "message": "Clinical reference model unavailable for this session because required research-model inputs are incomplete.",
             "model": "OASIS_LogisticRegression",
             "probability": None,
-            "risk_band": None,
+            "risk_band": "unavailable",
+            "missing_features": CLINICAL_FEATURE_NAMES,
+            "provided_features": [],
             "explanations": [],
         }
 
-    # At least Age and MMSE or Education must be provided for meaningful inference
-    core_keys = ["Age", "MMSE", "EDUC"]
-    provided_core = [k for k in core_keys if k in clinical_inputs and clinical_inputs[k] is not None]
-    if len(provided_core) == 0:
+    # Strict feature completeness check: ALL 8 validated features must be present and valid
+    missing_features: List[str] = []
+    for feat in CLINICAL_FEATURE_NAMES:
+        if feat not in clinical_inputs:
+            missing_features.append(feat)
+            continue
+        val = clinical_inputs[feat]
+        if val is None:
+            missing_features.append(feat)
+            continue
+        if feat == "sex":
+            if isinstance(val, str) and val.strip().upper() not in ["M", "F", "1", "0"]:
+                missing_features.append(feat)
+            elif not isinstance(val, (int, float, str)):
+                missing_features.append(feat)
+        else:
+            try:
+                val_float = float(val)
+                if np.isnan(val_float):
+                    missing_features.append(feat)
+            except (ValueError, TypeError):
+                missing_features.append(feat)
+
+    if missing_features:
+        provided = [f for f in CLINICAL_FEATURE_NAMES if f not in missing_features]
         return {
             "status": "insufficient_input",
-            "message": f"Core clinical features missing. Provided: {list(clinical_inputs.keys())}",
+            "message": f"Clinical reference model unavailable for this session because required research-model inputs are incomplete. Missing: {missing_features}.",
             "model": "OASIS_LogisticRegression",
             "probability": None,
-            "risk_band": None,
+            "risk_band": "unavailable",
+            "missing_features": missing_features,
+            "provided_features": provided,
             "explanations": [],
         }
 
@@ -142,26 +169,21 @@ def predict_clinical_reference(clinical_inputs: Optional[Dict[str, Any]]) -> Dic
             "model": "OASIS_LogisticRegression",
             "probability": None,
             "risk_band": None,
+            "missing_features": [],
             "explanations": [],
         }
 
-    # Format input DataFrame
+    # Format complete input DataFrame
     row: Dict[str, Any] = {}
     for feat in CLINICAL_FEATURE_NAMES:
-        val = clinical_inputs.get(feat)
-        if feat == "sex" and val is not None:
+        val = clinical_inputs[feat]
+        if feat == "sex":
             if isinstance(val, str):
-                val = 1.0 if val.strip().upper() == "M" else 0.0
+                row[feat] = 1.0 if val.strip().upper() in ["M", "1"] else 0.0
             else:
-                val = float(val)
-        elif val is not None:
-            try:
-                val = float(val)
-            except (ValueError, TypeError):
-                val = np.nan
+                row[feat] = 1.0 if float(val) == 1.0 else 0.0
         else:
-            val = np.nan
-        row[feat] = val
+            row[feat] = float(val)
 
     df_input = pd.DataFrame([row], columns=CLINICAL_FEATURE_NAMES)
 
@@ -176,6 +198,7 @@ def predict_clinical_reference(clinical_inputs: Optional[Dict[str, Any]]) -> Dic
             "model": "OASIS_LogisticRegression",
             "probability": None,
             "risk_band": None,
+            "missing_features": [],
             "explanations": [],
         }
 
@@ -186,7 +209,7 @@ def predict_clinical_reference(clinical_inputs: Optional[Dict[str, Any]]) -> Dic
     else:
         risk_band = "High"
 
-    # Compute feature contributions using pipeline transform + coefficients
+    # Compute genuine feature contributions using pipeline transform + coefficients
     explanations = []
     try:
         imputer = pipeline.named_steps["imputer"]
@@ -217,6 +240,8 @@ def predict_clinical_reference(clinical_inputs: Optional[Dict[str, Any]]) -> Dic
         "model": "OASIS_LogisticRegression",
         "probability": prob,
         "risk_band": risk_band,
+        "missing_features": [],
+        "provided_features": CLINICAL_FEATURE_NAMES,
         "explanations": explanations[:5],
         "research_disclaimer": (
             "This reference probability is estimated by a logistic regression model trained on the OASIS "

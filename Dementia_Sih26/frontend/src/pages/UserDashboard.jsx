@@ -1,9 +1,8 @@
 import { useState, useEffect, useRef } from "react";
 import { T } from "../utils/theme";
 import { DarkCard, Btn, Badge, MiniChart } from "../components/RiskDashboard";
-import { getUser, getMyResults, getDoctors } from "../services/api";
+import { getUser, getMyResults, getDoctors, getMyCaregivers, assignCaregiver, revokeCaregiver } from "../services/api";
 import { useAssessment } from "../context/AssessmentContext";
-import { submitAnalysis } from "../services/api";
 import { useI18n } from "../i18n/LanguageContext";
 import { registerVoiceContext } from "../utils/voiceDispatcher";
 import { useVoicePageAnnouncer } from "../hooks/useVoicePageAnnouncer";
@@ -353,6 +352,247 @@ function DoctorPanel() {
 }
 
 /* ─────────────────────────────────────────────
+   Inline Caregiver Panel
+───────────────────────────────────────────── */
+function CaregiverPanel({ onCountChange }) {
+  const [caregivers, setCaregivers] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [target, setTarget] = useState("");
+  const [assigning, setAssigning] = useState(false);
+  const [revokingId, setRevokingId] = useState(null);
+  const [msg, setMsg] = useState(null);
+  const [isError, setIsError] = useState(false);
+
+  async function loadCaregivers() {
+    setLoading(true);
+    try {
+      const data = await getMyCaregivers();
+      const list = data?.caregivers || [];
+      setCaregivers(list);
+      if (onCountChange) {
+        onCountChange(list.filter(c => c.status === "connected").length);
+      }
+    } catch (e) {
+      setCaregivers([]);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    loadCaregivers();
+  }, []);
+
+  async function handleAssign(e) {
+    e.preventDefault();
+    if (!target.trim()) return;
+    setAssigning(true);
+    setMsg(null);
+    setIsError(false);
+    try {
+      await assignCaregiver(target.trim());
+      setMsg("Caregiver connected successfully! They can now monitor non-diagnostic wellness updates.");
+      setIsError(false);
+      setTarget("");
+      await loadCaregivers();
+    } catch (err) {
+      setMsg(err.message || "Failed to assign caregiver");
+      setIsError(true);
+    } finally {
+      setAssigning(false);
+    }
+  }
+
+  async function handleRevoke(caregiverId) {
+    setRevokingId(caregiverId);
+    setMsg(null);
+    setIsError(false);
+    try {
+      await revokeCaregiver(caregiverId);
+      setMsg("Caregiver access revoked successfully.");
+      setIsError(false);
+      await loadCaregivers();
+    } catch (err) {
+      setMsg(err.message || "Failed to revoke caregiver");
+      setIsError(true);
+    } finally {
+      setRevokingId(null);
+    }
+  }
+
+  return (
+    <div>
+      {msg && (
+        <div style={{
+          marginBottom: 14,
+          padding: "9px 14px",
+          borderRadius: 10,
+          background: isError ? "rgba(232,64,64,0.08)" : `${LIME}08`,
+          border: `1px solid ${isError ? "rgba(232,64,64,0.2)" : LIME + "22"}`,
+          color: isError ? "#ff7070" : LIME,
+          fontSize: 12,
+          display: "flex",
+          alignItems: "center",
+          gap: 8
+        }}>
+          <span>{isError ? "⚠️" : "✓"}</span>
+          <span>{msg}</span>
+        </div>
+      )}
+
+      {/* Assign Form */}
+      <form onSubmit={handleAssign} style={{ display: "flex", gap: 8, marginBottom: 16 }}>
+        <input
+          type="text"
+          placeholder="Enter caregiver email or ID (e.g. sreejeta@demo.com)"
+          value={target}
+          onChange={(e) => setTarget(e.target.value)}
+          style={{
+            flex: 1,
+            padding: "9px 14px",
+            background: "rgba(255,255,255,0.04)",
+            border: "1px solid rgba(255,255,255,0.1)",
+            borderRadius: 10,
+            color: "#fff",
+            fontSize: 13,
+            outline: "none"
+          }}
+        />
+        <button
+          type="submit"
+          disabled={assigning || !target.trim()}
+          style={{
+            background: PUR,
+            color: "#0a0a0a",
+            border: "none",
+            borderRadius: 10,
+            padding: "9px 16px",
+            fontSize: 12,
+            fontWeight: 700,
+            cursor: assigning || !target.trim() ? "not-allowed" : "pointer",
+            opacity: assigning || !target.trim() ? 0.6 : 1,
+            whiteSpace: "nowrap",
+            fontFamily: "'DM Sans',sans-serif"
+          }}
+        >
+          {assigning ? "Connecting…" : "Connect Caregiver"}
+        </button>
+      </form>
+
+      {/* Caregiver list */}
+      {loading ? (
+        <div style={{ color: "#555", fontSize: 13, padding: "16px 0", textAlign: "center" }}>Loading caregivers…</div>
+      ) : caregivers.length === 0 ? (
+        <div style={{
+          padding: "20px 16px",
+          background: "rgba(255,255,255,0.02)",
+          border: "1px dashed rgba(255,255,255,0.08)",
+          borderRadius: 12,
+          textAlign: "center"
+        }}>
+          <div style={{ fontSize: 24, marginBottom: 6 }}>👥</div>
+          <div style={{ color: "#888", fontSize: 13, fontWeight: 600, marginBottom: 4 }}>No Caregiver Connected</div>
+          <div style={{ color: "#555", fontSize: 11, maxWidth: 360, margin: "0 auto" }}>
+            Add a family member or caregiver to allow them to view your non-diagnostic wellness updates and cognitive attention trends.
+          </div>
+        </div>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          {caregivers.map((c) => {
+            const caregiverObj = c.caregiver || {};
+            const name = caregiverObj.full_name || caregiverObj.email || c.caregiver_id;
+            const email = caregiverObj.email;
+            const isConnected = c.status === "connected";
+            const initial = (name[0] || "C").toUpperCase();
+
+            return (
+              <div
+                key={c.id || c.caregiver_id}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  padding: "12px 16px",
+                  borderRadius: 12,
+                  background: isConnected ? "rgba(167,139,250,0.04)" : "rgba(255,255,255,0.02)",
+                  border: `1px solid ${isConnected ? "rgba(167,139,250,0.2)" : "rgba(255,255,255,0.06)"}`,
+                  gap: 12
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0 }}>
+                  <div style={{
+                    width: 38,
+                    height: 38,
+                    borderRadius: "50%",
+                    background: "rgba(167,139,250,0.15)",
+                    border: "1px solid rgba(167,139,250,0.3)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    color: PUR,
+                    fontWeight: 800,
+                    fontSize: 15,
+                    flexShrink: 0
+                  }}>
+                    {initial}
+                  </div>
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <span style={{ fontWeight: 700, color: "#fff", fontSize: 13, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        {name}
+                      </span>
+                      <span style={{
+                        background: isConnected ? "rgba(200,241,53,0.12)" : "rgba(245,158,11,0.12)",
+                        color: isConnected ? LIME : AMB,
+                        border: `1px solid ${isConnected ? LIME + "33" : AMB + "33"}`,
+                        borderRadius: 20,
+                        padding: "1px 8px",
+                        fontSize: 10,
+                        fontWeight: 700
+                      }}>
+                        {isConnected ? "✓ Active" : "Pending"}
+                      </span>
+                    </div>
+                    <div style={{ fontSize: 11, color: "#666", marginTop: 2 }}>
+                      {email ? `${email} · ` : ""}Caregiver Role
+                    </div>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => handleRevoke(c.caregiver_id)}
+                  disabled={revokingId === c.caregiver_id}
+                  style={{
+                    background: "rgba(232,64,64,0.08)",
+                    border: "1px solid rgba(232,64,64,0.2)",
+                    color: "#ff7070",
+                    padding: "4px 12px",
+                    borderRadius: 20,
+                    fontSize: 11,
+                    fontWeight: 600,
+                    cursor: revokingId === c.caregiver_id ? "not-allowed" : "pointer",
+                    fontFamily: "'DM Sans',sans-serif",
+                    flexShrink: 0,
+                    opacity: revokingId === c.caregiver_id ? 0.6 : 1
+                  }}
+                >
+                  {revokingId === c.caregiver_id ? "Revoking…" : "Revoke"}
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      <p style={{ marginTop: 12, fontSize: 11, color: "#444", lineHeight: 1.6 }}>
+        🔒 Caregivers have access to non-diagnostic monitoring trends, behavioral deviations, and cognitive domain scores only. Doctor-patient and patient-caregiver relationships are managed separately.
+      </p>
+    </div>
+  );
+}
+
+/* ─────────────────────────────────────────────
    Main Dashboard
 ───────────────────────────────────────────── */
 export default function UserDashboard({ setPage }) {
@@ -362,6 +602,7 @@ export default function UserDashboard({ setPage }) {
   const [results,  setResults]  = useState([]);
   const [loading,  setLoading]  = useState(true);
   const [doctorInfo, setDoctorInfo] = useState({ doctor: null, pending_doctor: null });
+  const [caregiverCount, setCaregiverCount] = useState(0);
 
   const { completedCount } = useAssessment();
 
@@ -434,11 +675,33 @@ export default function UserDashboard({ setPage }) {
   while (chartData.length < 7) chartData.unshift(null);
 
   const lastDate   = last ? new Date(last.timestamp).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : null;
-  const riskLevel  = hasData ? (Object.values(last.risk_levels || {}).includes("High") ? t("highRisk", "High") : Object.values(last.risk_levels || {}).includes("Moderate") ? t("moderateRisk", "Moderate") : t("lowRisk", "Low")) : null;
+  const attentionPriority = hasData ? (() => {
+    if (results.length < 3 || last.ml_analysis?.behavioral_deviation?.status === "insufficient_history") {
+      return "Pending Assessment";
+    }
+    const oa = last.ml_analysis?.overall_attention;
+    if (oa?.available && oa?.label) {
+      const lbl = oa.label.toLowerCase();
+      if (lbl.includes("high") || lbl.includes("elevated")) return "Elevated";
+      if (lbl.includes("moderate")) return "Moderate";
+      return "Routine";
+    }
+    const bd = last.ml_analysis?.behavioral_deviation;
+    if (bd?.severity === "severe" || bd?.severity === "significant") return "Elevated";
+    if (bd?.severity === "mild") return "Moderate";
+    if (bd?.severity === "none") return "Routine";
+    if ((last.composite_risk_score ?? 0) >= 65) return "Elevated";
+    if ((last.composite_risk_score ?? 0) >= 35) return "Moderate";
+    return "Routine";
+  })() : null;
 
   // Badge for doctor section
   const doctorBadge = doctorInfo.pending_doctor ? "1 pending" : doctorInfo.doctor ? null : null;
   const doctorBadgeColor = doctorInfo.pending_doctor ? AMB : LIME;
+
+  // Badge for caregiver section
+  const caregiverBadge = caregiverCount > 0 ? `${caregiverCount} Active` : null;
+  const caregiverBadgeColor = caregiverCount > 0 ? PUR : AMB;
 
   // Assessment section defaults open if no data, closed if they have results
   const assessDefaultOpen = !hasData;
@@ -489,6 +752,18 @@ export default function UserDashboard({ setPage }) {
             <DoctorPanel />
           </CollapsibleSection>
 
+          {/* ── Collapsible: My Caregiver ── */}
+          <CollapsibleSection
+            title="My Caregiver"
+            icon="👥"
+            badge={caregiverBadge}
+            badgeColor={caregiverBadgeColor}
+            defaultOpen={false}
+            accentColor={PUR}
+          >
+            <CaregiverPanel onCountChange={setCaregiverCount} />
+          </CollapsibleSection>
+
           {/* ── Results (only if data exists) ── */}
           {hasData && (
             <>
@@ -496,8 +771,16 @@ export default function UserDashboard({ setPage }) {
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 16 }}>
                 {/* Score card */}
                 <DarkCard style={{ padding: 36 }} hover={false}>
-                  <div style={{ fontSize: 10, color: "#555", letterSpacing: 2, textTransform: "uppercase", marginBottom: 16, fontWeight: 700 }}>Overall Cognitive Score</div>
-                  <div style={{ display: "flex", alignItems: "flex-end", gap: 14, marginBottom: 20 }}>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
+                    <div style={{ fontSize: 10, color: "#777", letterSpacing: 2, textTransform: "uppercase", fontWeight: 700 }}>Cognitive Performance Index</div>
+                    <span
+                      title="Composite performance index derived from measured cognitive domains. It is a monitoring metric and not a medical diagnosis."
+                      style={{ cursor: "help", fontSize: 12, color: "#666", background: "rgba(255,255,255,0.06)", borderRadius: "50%", width: 18, height: 18, display: "inline-flex", alignItems: "center", justifyContent: "center" }}
+                    >
+                      ℹ️
+                    </span>
+                  </div>
+                  <div style={{ display: "flex", alignItems: "flex-end", gap: 14, marginBottom: 10 }}>
                     <span style={{ fontFamily: "'DM Sans',sans-serif", fontWeight: 900, fontSize: 100, color: "#fff", lineHeight: 1, letterSpacing: "-5px" }}>{overallScore}</span>
                     <div style={{ paddingBottom: 18 }}>
                       {results.length >= 2 && (() => {
@@ -513,7 +796,10 @@ export default function UserDashboard({ setPage }) {
                       })()}
                     </div>
                   </div>
-                  <Badge level={riskLevel} />
+                  <div style={{ fontSize: 11, color: "#666", lineHeight: 1.4, marginBottom: 16 }}>
+                    Composite performance index derived from measured cognitive domains. It is a monitoring metric and not a medical diagnosis.
+                  </div>
+                  <Badge level={attentionPriority} />
                   <div style={{ marginTop: 24 }}>
                     <MiniChart data={chartData.filter(Boolean)} color={LIME} height={60} />
                   </div>
@@ -536,17 +822,74 @@ export default function UserDashboard({ setPage }) {
                 </DarkCard>
               </div>
 
-              {/* Neural Pattern Anomaly row */}
+              {/* Behavioral Deviation & Clinical Reference Status */}
+              {last.ml_analysis?.behavioral_deviation && (
+                <div style={{
+                  background: "rgba(255,255,255,0.02)",
+                  border: "1px solid rgba(255,255,255,0.08)",
+                  borderRadius: 14,
+                  padding: "12px 18px",
+                  marginBottom: 16,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  flexWrap: "wrap",
+                  gap: 10,
+                }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    <span style={{ fontSize: 16 }}>📈</span>
+                    <span style={{ fontSize: 13, color: "#ccc" }}>
+                      <strong>Behavioral Deviation:</strong>{" "}
+                      {last.ml_analysis.behavioral_deviation.severity
+                        ? last.ml_analysis.behavioral_deviation.severity.charAt(0).toUpperCase() + last.ml_analysis.behavioral_deviation.severity.slice(1)
+                        : "None"}
+                      {" · "}
+                      <span style={{ color: "#777" }}>
+                        {last.ml_analysis.behavioral_deviation.status === "insufficient_history"
+                          ? "Preliminary session; baseline calibration in progress"
+                          : "Longitudinal IsolationForest analysis"}
+                      </span>
+                    </span>
+                  </div>
+                  {last.ml_analysis?.clinical_reference && (
+                    <span style={{ fontSize: 11, color: "#888" }}>
+                      Clinical Reference: {last.ml_analysis.clinical_reference.status === "available" ? "Available" : "Insufficient input"}
+                    </span>
+                  )}
+                </div>
+              )}
+
+              {/* Domain Performance Row (Measured domain scores, NOT disease proxies) */}
               <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 16, marginBottom: 16 }}>
                 {[
-                  { key: "alzheimers", label: "Memory Deviation Index", icon: "🧩", color: PUR, desc: "Memory & recall pattern" },
-                  { key: "dementia",   label: "Executive Drift Score",  icon: "🌀", color: AMB, desc: "Attention & processing" },
-                  { key: "parkinsons", label: "Motor Anomaly Index",    icon: "🎯", color: BLU, desc: "Motor coordination" },
+                  {
+                    key: "memory",
+                    label: "Memory Performance",
+                    icon: "🧩",
+                    color: BLU,
+                    score: Math.round(last.memory_score ?? 0),
+                    desc: "Immediate & delayed word recall accuracy",
+                  },
+                  {
+                    key: "executive",
+                    label: "Executive Performance",
+                    icon: "🌀",
+                    color: PUR,
+                    score: Math.round(last.executive_score ?? 0),
+                    desc: "Stroop inhibitory control & cognitive flexibility",
+                  },
+                  {
+                    key: "motor",
+                    label: "Motor Performance",
+                    icon: "🎯",
+                    color: LIME,
+                    score: Math.round(last.motor_score ?? 0),
+                    desc: "Rhythmic finger tapping cadence & regularity",
+                  },
                 ].map(d => {
-                  const prob  = Math.round((last[`${d.key}_risk`] || 0) * 100);
-                  const level = last.risk_levels?.[d.key] || "Low";
-                  const lvlColor    = level === "High" ? RED : level === "Moderate" ? AMB : T.green;
-                  const statusLabel = level === "High" ? "Worth Monitoring" : level === "Moderate" ? "Some Variation" : "Typical Range";
+                  const score = d.score;
+                  const statusLabel = score >= 75 ? "Optimal Range" : score >= 50 ? "Typical Range" : "Worth Monitoring";
+                  const lvlColor = score >= 75 ? T.green : score >= 50 ? AMB : RED;
                   return (
                     <DarkCard key={d.key} style={{ padding: 22, border: `1px solid ${d.color}20` }}>
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
@@ -559,9 +902,9 @@ export default function UserDashboard({ setPage }) {
                         </div>
                         <span style={{ background: `${lvlColor}18`, color: lvlColor, padding: "3px 10px", borderRadius: 20, fontSize: 10, fontWeight: 700, border: `1px solid ${lvlColor}33` }}>{statusLabel}</span>
                       </div>
-                      <div style={{ fontFamily: "'DM Sans',sans-serif", fontWeight: 900, fontSize: 40, color: d.color, lineHeight: 1 }}>{prob}<span style={{ fontSize: 16, color: "#555" }}>%</span></div>
+                      <div style={{ fontFamily: "'DM Sans',sans-serif", fontWeight: 900, fontSize: 40, color: d.color, lineHeight: 1 }}>{score}<span style={{ fontSize: 16, color: "#555" }}>/100</span></div>
                       <div style={{ height: 4, borderRadius: 2, background: "rgba(255,255,255,0.07)", marginTop: 12 }}>
-                        <div style={{ height: "100%", width: `${prob}%`, background: d.color, borderRadius: 2 }} />
+                        <div style={{ height: "100%", width: `${Math.min(score, 100)}%`, background: d.color, borderRadius: 2 }} />
                       </div>
                     </DarkCard>
                   );
@@ -575,7 +918,7 @@ export default function UserDashboard({ setPage }) {
                   <div style={{ fontFamily: "'DM Sans',sans-serif", fontWeight: 900, fontSize: "clamp(16px,2vw,22px)", color: "#fff", marginBottom: 4, letterSpacing: "-0.5px" }}>
                     View full neural pattern report
                   </div>
-                  <div style={{ color: "#555", fontSize: 13 }}>Explainability · Risk drivers · Wellness recommendations</div>
+                  <div style={{ color: "#555", fontSize: 13 }}>Explainability · Feature drivers · Wellness recommendations</div>
                 </div>
                 <div style={{ display: "flex", gap: 10, flexShrink: 0 }}>
                   <Btn onClick={() => setPage("results")} style={{ fontSize: 13 }}>View Report →</Btn>

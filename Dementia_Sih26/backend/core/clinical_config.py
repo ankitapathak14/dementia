@@ -11,8 +11,11 @@ Layers:
   4. Fatigue/temporary factor confidence scoring
 
 Source: Approximate population norms inspired by MMSE/MoCA literature.
-This is NOT a diagnostic tool — screening signals only.
+This is NOT a diagnostic tool - screening signals only.
 """
+from __future__ import annotations
+
+from typing import Any, Dict, Optional, Union
 
 # ── Scoring weights (must sum to 1.0) ─────────────────────────────────────────
 DOMAIN_WEIGHTS = {
@@ -82,6 +85,51 @@ EDUCATION_CORRECTION = {
 
 def get_education_correction(education_level: int) -> float:
     return EDUCATION_CORRECTION.get(education_level, 0.0)
+
+
+# ── Education mapping to formal years (EDUC for clinical reference) ────────────
+# Documented mapping from NeuroAid categories to estimated years of education (EDUC).
+EDUCATION_YEARS_MAPPING: dict[Union[int, str], float] = {
+    1: 6.0,                      # No formal / incomplete primary
+    2: 8.0,                      # Primary education
+    3: 12.0,                     # Secondary / High School
+    4: 16.0,                     # Graduate / Bachelor's
+    5: 18.0,                     # Post-graduate / Master's / Doctoral
+    "no formal": 6.0,
+    "primary": 8.0,
+    "high school": 12.0,
+    "some college": 14.0,
+    "bachelor's": 16.0,
+    "bachelors": 16.0,
+    "master's": 18.0,
+    "masters": 18.0,
+    "doctoral": 20.0,
+    "doctorate": 20.0,
+    "professional degree": 20.0,
+}
+
+
+def map_education_to_years(education_value: Optional[Union[int, str]]) -> Optional[float]:
+    """
+    Explicitly map NeuroAid education representation to years of education (EDUC)
+    for the OASIS clinical reference model.
+    Returns None if the value is invalid or cannot be reliably mapped.
+    DO NOT guess or multiply by arbitrary constants.
+    """
+    if education_value is None:
+        return None
+    if isinstance(education_value, int):
+        return EDUCATION_YEARS_MAPPING.get(education_value)
+    if isinstance(education_value, str):
+        clean = education_value.strip().lower()
+        if clean.isdigit():
+            val = int(clean)
+            if 1 <= val <= 5:
+                return EDUCATION_YEARS_MAPPING.get(val)
+            elif 6 <= val <= 25:
+                return float(val)
+        return EDUCATION_YEARS_MAPPING.get(clean)
+    return None
 
 
 # ── Medical condition risk multipliers (γ coefficients) ───────────────────────

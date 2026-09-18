@@ -254,3 +254,110 @@ def build_feature_vector(speech_f, memory_f, reaction_f, executive_f, motor_f) -
         stroop_rt=executive_f.get("stroop_rt", 550),
         tap_interval_std=motor_f.get("tap_interval_std", 40),
     )
+
+
+def compute_feature_provenance(
+    audio_b64: Optional[str] = None,
+    speech: Optional[SpeechData] = None,
+    memory_results: Optional[dict] = None,
+    memory: Optional[MemoryData] = None,
+    reaction_times: Optional[list] = None,
+    reaction: Optional[ReactionData] = None,
+    stroop: Optional[StroopData] = None,
+    tap: Optional[TapData] = None,
+) -> tuple[dict[str, str], dict[str, list[str]], dict[str, int]]:
+    """
+    Classifies each of the 18 behavioral features into one of three provenance categories:
+      - 'measured': directly captured from patient actions/signals during testing
+      - 'derived': calculated deterministically from measured companion parameters
+      - 'defaulted': fallback baseline used when input is unprovided or incomplete
+    """
+    provenance: dict[str, str] = {}
+
+    # Speech (5)
+    if speech and speech.wpm and speech.wpm > 0:
+        provenance["wpm"] = "measured"
+    elif audio_b64:
+        provenance["wpm"] = "derived"
+    else:
+        provenance["wpm"] = "defaulted"
+
+    if speech and speech.speed_deviation is not None:
+        provenance["speed_deviation"] = "measured"
+    elif provenance["wpm"] != "defaulted":
+        provenance["speed_deviation"] = "derived"
+    else:
+        provenance["speed_deviation"] = "defaulted"
+
+    if speech and speech.speech_speed_variability is not None:
+        provenance["speech_variability"] = "measured"
+    elif provenance["speed_deviation"] != "defaulted":
+        provenance["speech_variability"] = "derived"
+    else:
+        provenance["speech_variability"] = "defaulted"
+
+    provenance["pause_ratio"] = "measured" if (speech and speech.pause_ratio is not None) else "defaulted"
+    provenance["speech_start_delay"] = "measured" if (speech and speech.speech_start_delay is not None) else "defaulted"
+
+    # Memory (5)
+    mem_res = memory_results or {}
+    has_imm = (memory and memory.word_recall_accuracy is not None) or ("word_recall_accuracy" in mem_res)
+    has_pattern = (memory and memory.pattern_accuracy is not None) or ("pattern_accuracy" in mem_res)
+
+    provenance["immediate_recall_accuracy"] = "measured" if has_imm else "defaulted"
+    if memory and memory.delayed_recall_accuracy is not None:
+        provenance["delayed_recall_accuracy"] = "measured"
+    elif has_imm or has_pattern:
+        provenance["delayed_recall_accuracy"] = "derived"
+    else:
+        provenance["delayed_recall_accuracy"] = "defaulted"
+
+    provenance["intrusion_count"] = "measured" if (memory and memory.intrusion_count is not None) else "defaulted"
+
+    if memory and memory.recall_latency_seconds is not None:
+        provenance["recall_latency"] = "measured"
+    elif has_imm:
+        provenance["recall_latency"] = "derived"
+    else:
+        provenance["recall_latency"] = "defaulted"
+
+    if memory and memory.order_match_ratio is not None:
+        provenance["order_match_ratio"] = "measured"
+    elif has_pattern:
+        provenance["order_match_ratio"] = "derived"
+    else:
+        provenance["order_match_ratio"] = "defaulted"
+
+    # Reaction (5)
+    rt_list = (reaction.times if reaction and reaction.times else reaction_times) or []
+    has_rt = len(rt_list) > 0
+    provenance["mean_rt"] = "measured" if has_rt else "defaulted"
+    provenance["std_rt"] = "measured" if has_rt else "defaulted"
+    provenance["min_rt"] = "measured" if has_rt else "defaulted"
+    provenance["reaction_drift"] = "measured" if len(rt_list) >= 2 else "defaulted"
+    provenance["miss_count"] = "measured" if (reaction and reaction.miss_count is not None) else "defaulted"
+
+    # Executive (2)
+    has_stroop = stroop is not None and stroop.total_trials > 0
+    provenance["stroop_error_rate"] = "measured" if has_stroop else "defaulted"
+    provenance["stroop_rt"] = (
+        "measured"
+        if (has_stroop and (stroop.incongruent_rt is not None or stroop.mean_rt is not None))
+        else "defaulted"
+    )
+
+    # Motor (1)
+    has_tap = tap is not None and len(tap.intervals) >= 3
+    provenance["tap_interval_std"] = "measured" if has_tap else "defaulted"
+
+    categorized = {
+        "measured": [k for k, v in provenance.items() if v == "measured"],
+        "derived": [k for k, v in provenance.items() if v == "derived"],
+        "defaulted": [k for k, v in provenance.items() if v == "defaulted"],
+    }
+    counts = {
+        "measured_count": len(categorized["measured"]),
+        "derived_count": len(categorized["derived"]),
+        "defaulted_count": len(categorized["defaulted"]),
+    }
+    return provenance, categorized, counts

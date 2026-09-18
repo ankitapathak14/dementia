@@ -180,14 +180,21 @@ function DomainCard({ label, score, expanded, onToggle }) {
 }
 
 // ── Screening Context Card ─────────────────────────────────────────────────────
-// Replaces the disease-risk cards entirely with responsible framing
-function ScreeningContextCard({ riskLevels, compositeRisk }) {
+// Uses actual measured domain performance instead of deprecated disease-risk fields
+function ScreeningContextCard({ result, compositeRisk }) {
+  const memScore = Math.round(result?.memory_score ?? 100);
+  const execScore = Math.round(result?.executive_score ?? 100);
+  const motScore = Math.round(result?.motor_score ?? 100);
+
+  const getTier = (s) => s >= 70 ? "Low" : s >= 50 ? "Moderate" : "High";
+
   const areas = [
     {
       name: "Memory & Recall",
       icon: "🧩",
       color: "#a78bfa",
-      level: riskLevels?.alzheimers,
+      score: memScore,
+      level: getTier(memScore),
       goodMsg: "Memory recall and word-finding patterns appear consistent with healthy function.",
       watchMsg: "Memory recall showed some variability. Many factors affect this — sleep, stress, hydration.",
       monitorMsg: "Memory performance was below typical ranges. Lifestyle factors often explain this. Consult a doctor if persistent.",
@@ -196,7 +203,8 @@ function ScreeningContextCard({ riskLevels, compositeRisk }) {
       name: "Attention & Processing",
       icon: "🌀",
       color: "#fbbf24",
-      level: riskLevels?.dementia,
+      score: execScore,
+      level: getTier(execScore),
       goodMsg: "Attention and processing speed patterns appear typical for your age group.",
       watchMsg: "Some variability in processing speed was detected. This is very common during first assessments.",
       monitorMsg: "Processing speed and attention were more variable than typical. Consider a follow-up assessment.",
@@ -205,7 +213,8 @@ function ScreeningContextCard({ riskLevels, compositeRisk }) {
       name: "Motor Coordination",
       icon: "🎯",
       color: "#60a5fa",
-      level: riskLevels?.parkinsons,
+      score: motScore,
+      level: getTier(motScore),
       goodMsg: "Motor rhythm and coordination patterns are within a healthy range.",
       watchMsg: "Minor motor rhythm variability detected. This is often related to hand fatigue or test unfamiliarity.",
       monitorMsg: "Motor rhythm was more irregular than typical. Retesting after rest is recommended.",
@@ -542,7 +551,7 @@ export default function ResultsPage({ setPage }) {
       {/* ── Header ── */}
       <div style={{ marginBottom: 32 }}>
         <div style={{ fontSize: 11, color: "rgba(240,236,227,0.35)", letterSpacing: 1.2, textTransform: "uppercase", marginBottom: 10 }}>
-          {today} · Early Cognitive Risk Indicator
+          {today} · Cognitive Performance Index
         </div>
         <h1 style={{ fontFamily: "'Instrument Serif',serif", fontSize: 34, color: "#f0ece3", letterSpacing: -1, marginBottom: 8, fontWeight: 400 }}>
           Your Results
@@ -647,7 +656,7 @@ export default function ResultsPage({ setPage }) {
       <div style={{ fontSize: 11, color: "rgba(240,236,227,0.35)", letterSpacing: 1, textTransform: "uppercase", marginBottom: 14 }}>
         Cognitive Area Overview
       </div>
-      <ScreeningContextCard riskLevels={r.risk_levels} compositeRisk={compositeRisk} />
+      <ScreeningContextCard result={r} compositeRisk={compositeRisk} />
 
       {/* ── Recommendations ── */}
       <Recommendations scores={domainScores} wellnessLevel={wellnessLevel} profile={profile} />

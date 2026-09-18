@@ -191,6 +191,9 @@ def evaluate_behavioral_anomaly(
     anomaly_index = float(1.0 / (1.0 + math.exp(6.0 * raw_score)))
     anomaly_index = round(max(0.0, min(1.0, anomaly_index)), 4)
 
+    n_sessions = len(historical_sessions)
+    is_preliminary = n_sessions < 5
+
     # 4. Compute personal baseline per feature
     baseline_comp: Dict[str, Dict[str, float]] = {}
     deviations: List[Dict[str, Any]] = []
@@ -199,8 +202,22 @@ def evaluate_behavioral_anomaly(
         values = [h[name] for h in hist_raw_list]
         b_mean = float(np.mean(values))
         b_std = float(np.std(values))
-        # Protect against zero variance in flat history
-        effective_std = b_std if b_std > 1e-4 else (0.1 * abs(b_mean) if abs(b_mean) > 1e-4 else 1.0)
+
+        # Retrieve feature natural range from existing FEATURE_NORMALIZATION_SCALES
+        scale_min, scale_max = FEATURE_NORMALIZATION_SCALES[name]
+        scale_span = max(scale_max - scale_min, 1.0)
+
+        # Preliminary baseline safety mechanism (3-4 historical sessions):
+        # Sample variance across only 3-4 sessions can be artificially near-zero, causing
+        # minor physiological/linguistic fluctuations to produce inflated z-scores.
+        # Enforce a minimum standard deviation floor of 5% of the feature's natural scale
+        # to distinguish statistical noise from meaningful cognitive performance decline.
+        if is_preliminary:
+            scale_floor = 0.05 * scale_span
+            effective_std = max(b_std, scale_floor)
+        else:
+            # Longitudinal baseline (5+ sessions): restore personal sensitivity
+            effective_std = b_std if b_std > 1e-4 else (0.1 * abs(b_mean) if abs(b_mean) > 1e-4 else 1.0)
 
         curr_val = raw_current[name]
         z = (curr_val - b_mean) / effective_std
@@ -250,38 +267,74 @@ def evaluate_behavioral_anomaly(
     ]
 
     # 5. Determine severity safely and non-diagnostically
-    max_adverse_z = max([d["abs_z"] for d in deviations if d["is_adverse_deviation"]], default=0.0)
+    adverse_devs = [d for d in deviations if d["is_adverse_deviation"]]
+    max_adverse_z = max([d["abs_z"] for d in adverse_devs], default=0.0)
+    adverse_count_sig = sum(1 for d in adverse_devs if d["abs_z"] >= 2.0)
 
-    # A cognitive performance deviation requires adverse deviation from baseline.
-    # If scores are within normal baseline variation (max_adverse_z < 1.5), it is not an anomaly.
-    if max_adverse_z < 1.5 and not (is_outlier and max_adverse_z >= 1.2):
-        severity = "none"
-        anomaly_detected = False
-    elif (is_outlier and anomaly_index >= 0.75) or max_adverse_z >= 3.0:
-        severity = "severe"
-        anomaly_detected = True
-    elif (is_outlier and anomaly_index >= 0.60) or max_adverse_z >= 2.2:
-        severity = "significant"
-        anomaly_detected = True
-    elif max_adverse_z >= 1.5 or (is_outlier and max_adverse_z >= 1.2):
-        severity = "mild"
-        anomaly_detected = True
+    if not is_preliminary:
+        # Mature longitudinal baseline: standard sensitivity
+        if max_adverse_z < 1.5 and not (is_outlier and max_adverse_z >= 1.2):
+            severity = "none"
+            anomaly_detected = False
+        elif (is_outlier and anomaly_index >= 0.75) or max_adverse_z >= 3.0:
+            severity = "severe"
+            anomaly_detected = True
+        elif (is_outlier and anomaly_index >= 0.60) or max_adverse_z >= 2.2:
+            severity = "significant"
+            anomaly_detected = True
+        elif max_adverse_z >= 1.5 or (is_outlier and max_adverse_z >= 1.2):
+            severity = "mild"
+            anomaly_detected = True
+        else:
+            severity = "none"
+            anomaly_detected = False
     else:
-        severity = "none"
-        anomaly_detected = False
+        # Preliminary baseline safety guard (3-4 sessions):
+        # Distinguish statistical unusualness from meaningful cognitive performance change.
+        # Require multiple adverse features (adverse_count_sig >= 2) before escalating to "severe".
+        if max_adverse_z < 1.5 and not (is_outlier and max_adverse_z >= 1.2):
+            severity = "none"
+            anomaly_detected = False
+        elif ((is_outlier and anomaly_index >= 0.75) or max_adverse_z >= 3.0) and adverse_count_sig >= 2:
+            severity = "severe"
+            anomaly_detected = True
+        elif (is_outlier and anomaly_index >= 0.60) or max_adverse_z >= 2.2:
+            severity = "significant"
+            anomaly_detected = True
+        elif max_adverse_z >= 1.5 or (is_outlier and max_adverse_z >= 1.2):
+            severity = "mild"
+            anomaly_detected = True
+        else:
+            severity = "none"
+            anomaly_detected = False
+
+    # Classify baseline maturity: 3-4 -> preliminary_baseline; 5+ -> longitudinal_baseline
+    n_sessions = len(historical_sessions)
+    if n_sessions >= 5:
+        baseline_status = "longitudinal_baseline"
+        baseline_msg = (
+            f"Longitudinal baseline established ({n_sessions} prior sessions). "
+            f"Cognitive performance deviation severity: {severity}."
+        )
+    else:
+        baseline_status = "preliminary_baseline"
+        baseline_msg = (
+            f"Preliminary baseline established ({n_sessions} prior sessions). "
+            f"Cognitive performance deviation severity: {severity}. "
+            "Note: 3–4 sessions provide an initial exploratory baseline for tracking performance variation, "
+            "but are not statistically sufficient for clinical diagnostic validation."
+        )
 
     return {
-        "status": "sufficient_history",
+        "status": baseline_status,
         "anomaly_detected": anomaly_detected,
         "severity": severity,
         "anomaly_score": anomaly_index,
         "raw_decision_score": round(raw_score, 4),
-        "session_count": len(historical_sessions),
+        "session_count": n_sessions,
         "top_deviating_features": top_deviations,
         "baseline_comparison": baseline_comp,
         "terminology": "Cognitive Performance Deviation",
-        "message": (
-            f"Cognitive performance deviation severity: {severity} "
-            f"(evaluated against personal {len(historical_sessions)}-session historical baseline)."
-        ),
+        "score_description": "Behavioral deviation score measuring deviation from personal cognitive baseline. This is NOT a dementia or Alzheimer's probability.",
+        "message": baseline_msg,
     }

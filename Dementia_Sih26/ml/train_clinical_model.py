@@ -163,8 +163,11 @@ def train_clinical_model(csv_path: str = None) -> Dict[str, Any]:
         "training_timestamp": datetime.now(timezone.utc).isoformat(),
         "training_sample_count": n_samples,
         "subject_count": n_subjects,
-        "prevalence": round(dementia_prevalence, 4),
-        "target_definition": "Binary clinical group: demented = 1, nondemented = 0 (CDR strictly excluded from inputs)",
+        "target_definition": (
+            "Binary clinical dementia status at visit: Nondemented = 0, Demented = 1. "
+            "Converted visits are labeled using visit-level CDR: CDR >= 0.5 -> 1, CDR == 0 -> 0. "
+            "CDR is used only for target construction and never as X (target leakage prevention)."
+        ),
         "input_features": CLINICAL_FEATURE_NAMES,
         "validation_protocol": "5-Fold StratifiedGroupKFold on Subject ID (zero longitudinal cross-visit leakage)",
         "metrics": {

@@ -143,7 +143,8 @@ def _can_access_patient_reminder(actor_id: str, patient_id: str, is_doctor_or_ca
     if is_doctor_or_caregiver:
         from services import auth_service
         from routers.consent_api import check_patient_consent
-        if auth_service.verify_doctor_patient_relationship(actor_id, patient_id) and check_patient_consent(patient_id, "share_reminders"):
+        actor = auth_service.get_users().get(actor_id, {})
+        if auth_service.verify_care_member_patient_access(actor, patient_id) and check_patient_consent(patient_id, "share_reminders"):
             return True
     return False
 

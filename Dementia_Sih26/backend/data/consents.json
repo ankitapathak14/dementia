@@ -4,7 +4,7 @@
     "share_memory_bank": true,
     "share_reminders": true,
     "allow_research_deidentified": true,
-    "updated_at": "2026-09-18T15:29:43+00:00",
+    "updated_at": "2026-09-18T19:41:19+00:00",
     "policy_version": "2026-v2-sih-demo"
   },
   "sih-demo-patient-002": {
@@ -12,7 +12,61 @@
     "share_memory_bank": true,
     "share_reminders": true,
     "allow_research_deidentified": true,
-    "updated_at": "2026-09-18T15:29:43+00:00",
+    "updated_at": "2026-09-18T19:41:19+00:00",
     "policy_version": "2026-v2-sih-demo"
+  },
+  "sih-demo-patient-a": {
+    "share_with_care_team": true,
+    "share_memory_bank": true,
+    "share_reminders": true,
+    "allow_research_deidentified": true,
+    "updated_at": "2026-09-18T19:42:10+00:00",
+    "policy_version": "2026-v2-sih-demo"
+  },
+  "sih-demo-patient-b": {
+    "share_with_care_team": true,
+    "share_memory_bank": true,
+    "share_reminders": true,
+    "allow_research_deidentified": true,
+    "updated_at": "2026-09-18T19:42:10+00:00",
+    "policy_version": "2026-v2-sih-demo"
+  },
+  "sih-demo-patient-c": {
+    "share_with_care_team": true,
+    "share_memory_bank": true,
+    "share_reminders": true,
+    "allow_research_deidentified": true,
+    "updated_at": "2026-09-18T19:42:10+00:00",
+    "policy_version": "2026-v2-sih-demo"
+  },
+  "sih-demo-patient-d": {
+    "share_with_care_team": true,
+    "share_memory_bank": true,
+    "share_reminders": true,
+    "allow_research_deidentified": true,
+    "updated_at": "2026-09-18T19:42:10+00:00",
+    "policy_version": "2026-v2-sih-demo"
+  },
+  "sih-demo-patient-e": {
+    "share_with_care_team": true,
+    "share_memory_bank": true,
+    "share_reminders": true,
+    "allow_research_deidentified": true,
+    "updated_at": "2026-09-18T19:42:10+00:00",
+    "policy_version": "2026-v2-sih-demo"
+  },
+  "test_wf_patient_001": {
+    "user_id": "test_wf_patient_001",
+    "data_collection": true,
+    "anonymous_research": true,
+    "doctor_access": true,
+    "consented_at": "2026-09-18T19:42:10.880712+00:00"
+  },
+  "test_wf_patient_002": {
+    "user_id": "test_wf_patient_002",
+    "data_collection": true,
+    "anonymous_research": true,
+    "doctor_access": true,
+    "consented_at": "2026-09-18T19:42:10.880741+00:00"
   }
 }

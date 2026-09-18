@@ -63,7 +63,7 @@ export default function Results({ setPage }) {
         <div style={{ fontWeight: 700, color: T.cream, fontSize: 15, marginBottom: 12 }}>Clinical Interpretation</div>
         <p style={{ color: T.creamFaint, lineHeight: 1.85, fontSize: 14 }}>
           Your overall score of <strong style={{ color: T.cream }}>{overall}/100</strong> places you in the{" "}
-          <strong style={{ color: T.green }}>Low Risk</strong> category.
+          <strong style={{ color: T.green }}>Routine Attention</strong> category.
           Speech patterns show normal fluency. Memory recall is strong at 82%. Reaction time is within normal norms.
           <strong style={{ color: T.cream }}> Continue monthly assessments</strong> to monitor trends.
         </p>

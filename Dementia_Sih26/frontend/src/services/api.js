@@ -180,6 +180,13 @@ export const getCaregiverAlerts = patientId => request("GET", `/dashboard/patien
 export const reviewCaregiverAlert = (patientId, alertId, status = "reviewed") =>
   request("POST", `/dashboard/patient/${patientId}/alerts/${alertId}/review`, { status }, true);
 
+// ── Patient-Caregiver Relationship Management ────────────────────────────────
+export const getMyCaregivers = () => request("GET", "/caregivers/my-caregivers", null, true);
+export const assignCaregiver = caregiverIdentity =>
+  request("POST", "/caregivers/assign", { caregiver_identity: caregiverIdentity }, true);
+export const revokeCaregiver = caregiverId =>
+  request("POST", "/caregivers/revoke", { caregiver_id: caregiverId }, true);
+
 export async function getGameHistory() {
   const token = getToken();
   const key = cacheKey(getUser()?.id, "game-history");

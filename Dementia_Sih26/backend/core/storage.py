@@ -97,3 +97,5 @@ rhythm_preferences_store = JsonStore(settings.data_dir / "rhythm_preferences.jso
 # ── Caregiver Alert stores ────────────────────────────────────────────────────
 caregiver_alerts_store = JsonStore(settings.data_dir / "caregiver_alerts.json", dict)
 
+# ── Patient-Caregiver Relationship store ──────────────────────────────────────
+patient_caregivers_store = JsonStore(settings.data_dir / "patient_caregivers.json", list)
