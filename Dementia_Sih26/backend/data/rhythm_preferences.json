@@ -1,0 +1,16 @@
+{
+  "test_rhythm_user": {
+    "region": "Assam",
+    "language": "Assamese",
+    "youth_era": "1970s",
+    "favorite_genres": [
+      "Folk"
+    ],
+    "favorite_artists": [],
+    "favorite_song_ids": [],
+    "session_duration_minutes": 10,
+    "evening_session_enabled": false,
+    "evening_session_time": null,
+    "updated_at": "2026-09-18T15:29:46+00:00"
+  }
+}

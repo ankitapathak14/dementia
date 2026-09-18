@@ -1,46 +1,77 @@
 """
 NeuroAid — core/ml_engine.py
 ================================
-ML Layer for NeuroAid V4.
+ML Engine for NeuroAid.
 
 Features:
-  1. Hybrid Risk Score: combines clinical weighted score + ML probability
-       Final Risk = 0.6 × Clinical Score + 0.4 × ML Probability
-  2. Progress Anomaly Detection: Z-score based detection of sudden cognitive drops
-  3. Confidence Interval computation for risk probabilities
+  1. Multi-Modal Signal Fusion (delegates to core.signal_fusion)
+  2. Longitudinal Progress Anomaly Detection (Z-score based detection of sudden cognitive drops)
+  3. Non-fabricated statistical uncertainty representation
+  4. Genuine model coefficient explainability and baseline deviations
 
 These are SCREENING SIGNALS only — not diagnostic.
 """
 
-import math
+from __future__ import annotations
+
 import statistics
-from typing import Optional
+from typing import Any, Dict, List, Optional
+
+from core.signal_fusion import fuse_cognitive_signals
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 1. HYBRID RISK COMPUTATION
+# 1. SIGNAL FUSION
 # ─────────────────────────────────────────────────────────────────────────────
+
+def compute_multimodal_fusion(
+    behavioral_anomaly_result: Optional[Dict[str, Any]],
+    clinical_reference_result: Optional[Dict[str, Any]],
+    behavioral_weight: float = 0.5,
+    clinical_weight: float = 0.5,
+) -> Dict[str, Any]:
+    """
+    Fuses behavioral anomaly signal and clinical reference signal ONLY when both exist.
+    Never combines a signal with itself.
+    """
+    return fuse_cognitive_signals(
+        behavioral_anomaly_result=behavioral_anomaly_result,
+        clinical_reference_result=clinical_reference_result,
+        behavioral_weight=behavioral_weight,
+        clinical_weight=clinical_weight,
+    )
+
 
 def compute_hybrid_risk(
-    clinical_prob: float,
-    ml_prob: float,
-    clinical_weight: float = 0.6,
-    ml_weight: float = 0.4,
-) -> float:
+    behavioral_score: Optional[float],
+    clinical_prob: Optional[float],
+    behavioral_weight: float = 0.5,
+    clinical_weight: float = 0.5,
+) -> Optional[float]:
     """
-    Hybrid model combining clinical rule-based and ML logistic probabilities.
-
-    Final Risk = w_clinical × Clinical_Prob + w_ml × ML_Prob
-
-    This blends medically interpretable rules with statistical modeling.
-    Both inputs should be in [0, 1].
+    Backward-compatible helper: fuses two distinct numerical probabilities/scores.
+    Guards against self-combination: if either input is None or both are identical references,
+    returns None or single available signal.
     """
-    hybrid = (clinical_weight * clinical_prob) + (ml_weight * ml_prob)
-    return round(max(0.0, min(1.0, hybrid)), 4)
+    if behavioral_score is None and clinical_prob is None:
+        return None
+    if behavioral_score is None:
+        return clinical_prob
+    if clinical_prob is None:
+        return behavioral_score
+
+    # Check for identical values (self-combination bug prevention)
+    if abs(behavioral_score - clinical_prob) < 1e-6:
+        # Cannot combine identical inputs (self-combination guard)
+        return round(float(behavioral_score), 4)
+
+    total_w = behavioral_weight + clinical_weight
+    fused = (behavioral_weight * behavioral_score + clinical_weight * clinical_prob) / total_w
+    return round(max(0.0, min(1.0, fused)), 4)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 2. PROGRESS ANOMALY DETECTION (Z-score based)
+# 2. PROGRESS ANOMALY DETECTION (Z-score based drop detection)
 # ─────────────────────────────────────────────────────────────────────────────
 
 ANOMALY_Z_THRESHOLD = -1.5   # > 1.5 std deviations drop = warning
@@ -48,21 +79,15 @@ ANOMALY_MIN_HISTORY = 3      # Need at least 3 sessions to detect anomalies
 
 
 def detect_progress_anomaly(
-    score_history: list[float],
+    score_history: List[float],
     current_score: float,
     metric_name: str = "score",
-) -> dict:
+) -> Dict[str, Any]:
     """
-    Detect if current_score is an anomalous DROP compared to historical trend.
+    Detect if current_score is an anomalous DROP compared to personal historical trend.
 
     Uses Z-score: Z = (current - mean_history) / std_history
     If Z < ANOMALY_Z_THRESHOLD → anomaly detected (significant drop).
-
-    Returns:
-        anomaly_detected: bool
-        z_score: float
-        severity: "none" | "mild" | "significant" | "severe"
-        message: str
     """
     if len(score_history) < ANOMALY_MIN_HISTORY:
         return {
@@ -73,65 +98,61 @@ def detect_progress_anomaly(
         }
 
     mean_h = statistics.mean(score_history)
-    # Use population std (stdev of sample) but protect against flat history
-    std_h  = statistics.stdev(score_history) if len(score_history) > 1 else 1.0
+    std_h = statistics.stdev(score_history) if len(score_history) > 1 else 1.0
     if std_h < 1.0:
-        std_h = 1.0   # Prevent divide-by-near-zero
+        std_h = 1.0
 
     z = (current_score - mean_h) / std_h
 
     if z < -2.5:
         severity = "severe"
-        anomaly  = True
+        anomaly = True
     elif z < -1.75:
         severity = "significant"
-        anomaly  = True
+        anomaly = True
     elif z < ANOMALY_Z_THRESHOLD:
         severity = "mild"
-        anomaly  = True
+        anomaly = True
     else:
         severity = "none"
-        anomaly  = False
+        anomaly = False
 
     messages = {
-        "none":        None,
-        "mild":        f"⚠️ Mild {metric_name} dip detected. Monitor over next session.",
-        "significant": f"⚠️ Significant {metric_name} drop detected. Recommend clinical attention.",
-        "severe":      f"🚨 Severe {metric_name} decline detected. Urgent clinical evaluation advised.",
+        "none": None,
+        "mild": f"Noticeable {metric_name} variation detected relative to baseline.",
+        "significant": f"Significant {metric_name} drop relative to historical baseline.",
+        "severe": f"Pronounced {metric_name} decline detected relative to baseline.",
         "insufficient_data": None,
     }
 
     return {
         "anomaly_detected": anomaly,
-        "z_score":          round(z, 3),
-        "severity":         severity,
-        "mean_history":     round(mean_h, 2),
-        "std_history":      round(std_h, 2),
-        "message":          messages.get(severity),
+        "z_score": round(z, 3),
+        "severity": severity,
+        "mean_history": round(mean_h, 2),
+        "std_history": round(std_h, 2),
+        "message": messages.get(severity),
     }
 
 
 def analyze_all_progress_anomalies(
-    historical_results: list[dict],
-    current_result: dict,
-) -> dict:
+    historical_results: List[Dict[str, Any]],
+    current_result: Dict[str, Any],
+) -> Dict[str, Any]:
     """
     Run anomaly detection across all key cognitive metrics.
-
-    historical_results: list of past result dicts (from results.json)
+    historical_results: list of past result dicts
     current_result: the just-computed result dict
-
-    Returns per-metric anomaly findings + overall alert level.
     """
     if not historical_results:
         return {"overall_alert": "none", "metrics": {}}
 
     METRICS_TO_CHECK = [
-        ("memory_score",    "Memory"),
-        ("reaction_score",  "Reaction Time"),
-        ("speech_score",    "Speech"),
+        ("memory_score", "Memory"),
+        ("reaction_score", "Reaction Time"),
+        ("speech_score", "Speech"),
         ("executive_score", "Executive Function"),
-        ("motor_score",     "Motor Control"),
+        ("motor_score", "Motor Control"),
     ]
 
     findings = {}
@@ -139,7 +160,7 @@ def analyze_all_progress_anomalies(
     severity_rank = {"none": 0, "insufficient_data": 0, "mild": 1, "significant": 2, "severe": 3}
 
     for field, label in METRICS_TO_CHECK:
-        history = [r[field] for r in historical_results if field in r]
+        history = [r[field] for r in historical_results if field in r and r[field] is not None]
         current = current_result.get(field)
         if current is None:
             continue
@@ -156,82 +177,86 @@ def analyze_all_progress_anomalies(
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 3. CONFIDENCE INTERVAL
+# 3. STATISTICAL UNCERTAINTY (No hardcoded fake CIs)
 # ─────────────────────────────────────────────────────────────────────────────
 
-def compute_confidence_interval(prob: float) -> dict:
+def compute_uncertainty() -> Dict[str, Any]:
     """
-    Approximate 95% CI for risk probability.
-    CI is widest near 0.5 (most uncertain) and narrower near extremes.
-    CI = prob ± (base_se + boundary_bonus)
+    Scientifically defensible uncertainty representation.
+    Hardcoded ±0.04/0.03 intervals are permanently removed.
     """
-    base_se        = 0.04
-    boundary_bonus = max(0, 0.03 - abs(prob - 0.5) * 0.06)
-    half_ci        = base_se + boundary_bonus
-    lower          = round(max(0.0, prob - half_ci), 4)
-    upper          = round(min(1.0, prob + half_ci), 4)
-
     return {
-        "ci_lower": lower,
-        "ci_upper": upper,
-        "ci_label": f"{round(prob * 100, 1)}% (±{round(half_ci * 100, 1)}%)",
+        "available": False,
+        "reason": "Formal statistical uncertainty requires model-specific estimation.",
+    }
+
+
+def compute_confidence_interval(prob: Optional[float]) -> Dict[str, Any]:
+    """
+    Backward compatibility wrapper for legacy response schemas.
+    Does NOT fabricate a confidence interval.
+    """
+    unc = compute_uncertainty()
+    label = f"{round(prob * 100, 1)}%" if prob is not None else None
+    return {
+        "ci_lower": None,
+        "ci_upper": None,
+        "ci_label": label,
+        "uncertainty": unc,
     }
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 4. FEATURE IMPORTANCE (SHAP-like approximation, no external lib)
+# 4. EXPLAINABILITY (Coefficients & Baseline Deviations — No Fake SHAP)
 # ─────────────────────────────────────────────────────────────────────────────
 
-def compute_feature_importance(feature_vector: dict, disease: str = "alzheimers") -> list[dict]:
+def get_clinical_model_explanations() -> List[Dict[str, Any]]:
     """
-    Approximate feature importance without external SHAP library.
-    Returns ranked list of features most contributing to risk.
-
-    Uses abs(normalized_feature × clinical_weight) as proxy for importance.
-    This gives a defensible, explainable breakdown for the hackathon demo.
+    Retrieve real model coefficients and odds ratios from trained OASIS model.
+    Never claims to be SHAP.
     """
-    # Clinical importance weights per disease
-    IMPORTANCE = {
-        "alzheimers": {
-            "delayed_recall_accuracy": 0.35,
-            "immediate_recall_accuracy": 0.30,
-            "intrusion_count": 0.20,
-            "pause_ratio": 0.15,
-            "order_match_ratio": 0.15,
-            "recall_latency": 0.10,
-            "reaction_drift": 0.05,
-            "stroop_error_rate": 0.05,
-        },
-        "dementia": {
-            "stroop_error_rate": 0.30,
-            "miss_count": 0.25,
-            "mean_rt": 0.25,
-            "std_rt": 0.20,
-            "reaction_drift": 0.18,
-            "delayed_recall_accuracy": 0.18,
-            "immediate_recall_accuracy": 0.20,
-        },
-        "parkinsons": {
-            "tap_interval_std": 0.40,
-            "mean_rt": 0.30,
-            "std_rt": 0.25,
-            "speech_start_delay": 0.20,
-            "speech_variability": 0.18,
-            "min_rt": 0.15,
-        },
-    }
+    try:
+        import os, json
+        meta_path = os.path.join(
+            os.path.dirname(__file__), "..", "..", "ml", "artifacts", "clinical_model_metadata.json"
+        )
+        if os.path.exists(meta_path):
+            with open(meta_path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+                return data.get("feature_coefficients", [])
+    except Exception:
+        pass
+    return []
 
-    weights = IMPORTANCE.get(disease, IMPORTANCE["alzheimers"])
-    items = []
-    for feat, weight in weights.items():
-        val = feature_vector.get(feat)
-        if val is None:
-            continue
-        items.append({
-            "feature":    feat,
-            "importance": round(weight, 3),
-            "value":      round(float(val), 3),
-        })
 
-    items.sort(key=lambda x: x["importance"], reverse=True)
-    return items[:6]   # Top 6 features
+def compute_feature_importance(
+    feature_vector: Dict[str, Any],
+    baseline_deviations: Optional[List[Dict[str, Any]]] = None,
+    disease: str = "clinical_reference",
+) -> List[Dict[str, Any]]:
+    """
+    Explainability breakdown based on true model coefficients (Layer B)
+    or baseline deviations (Layer A).
+    Never claims to be SHAP.
+    """
+    if baseline_deviations:
+        # Use genuine deviations from patient baseline
+        items = []
+        for d in baseline_deviations:
+            items.append({
+                "feature": d["feature"],
+                "importance": abs(d.get("z_score", 0.0)),
+                "value": d.get("current_value"),
+                "direction": d.get("direction"),
+                "explanation_type": "personal_baseline_deviation",
+            })
+        items.sort(key=lambda x: x["importance"], reverse=True)
+        return items[:6]
+
+    # Fallback to trained clinical coefficients if available
+    coefs = get_clinical_model_explanations()
+    if coefs:
+        return coefs[:6]
+
+    # Fallback when no baseline or clinical artifacts exist
+    return []

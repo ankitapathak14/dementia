@@ -1,0 +1,106 @@
+{
+  "dataset_name": "OASIS Longitudinal MRI Data in Nondemented and Demented Older Adults",
+  "source": "Marcus et al. (2010), oasis-brains.org",
+  "training_timestamp": "2026-09-18T15:29:45.932150+00:00",
+  "training_sample_count": 373,
+  "subject_count": 150,
+  "prevalence": 0.4424,
+  "target_definition": "Binary clinical group: demented = 1, nondemented = 0 (CDR strictly excluded from inputs)",
+  "input_features": [
+    "Age",
+    "EDUC",
+    "SES",
+    "MMSE",
+    "eTIV",
+    "nWBV",
+    "ASF",
+    "sex"
+  ],
+  "validation_protocol": "5-Fold StratifiedGroupKFold on Subject ID (zero longitudinal cross-visit leakage)",
+  "metrics": {
+    "roc_auc": 0.8921,
+    "pr_auc": 0.8886,
+    "sensitivity": 0.7636,
+    "specificity": 0.8413,
+    "precision": 0.7925,
+    "f1": 0.7778,
+    "confusion_matrix": [
+      [
+        175,
+        33
+      ],
+      [
+        39,
+        126
+      ]
+    ],
+    "fold_roc_aucs": [
+      0.8879,
+      0.9098,
+      0.9574,
+      0.883,
+      0.8858
+    ]
+  },
+  "model_architecture": "Pipeline(SimpleImputer(median) -> StandardScaler -> LogisticRegression(balanced))",
+  "intercept": 0.634,
+  "feature_coefficients": [
+    {
+      "feature": "MMSE",
+      "coefficient": -3.1063,
+      "odds_ratio": 0.0448,
+      "direction": "decreases_risk",
+      "standardized_importance": 3.1063
+    },
+    {
+      "feature": "nWBV",
+      "coefficient": -0.9368,
+      "odds_ratio": 0.3919,
+      "direction": "decreases_risk",
+      "standardized_importance": 0.9368
+    },
+    {
+      "feature": "sex",
+      "coefficient": 0.7834,
+      "odds_ratio": 2.1889,
+      "direction": "increases_risk",
+      "standardized_importance": 0.7834
+    },
+    {
+      "feature": "Age",
+      "coefficient": -0.7714,
+      "odds_ratio": 0.4624,
+      "direction": "decreases_risk",
+      "standardized_importance": 0.7714
+    },
+    {
+      "feature": "EDUC",
+      "coefficient": -0.6953,
+      "odds_ratio": 0.4989,
+      "direction": "decreases_risk",
+      "standardized_importance": 0.6953
+    },
+    {
+      "feature": "SES",
+      "coefficient": -0.5137,
+      "odds_ratio": 0.5983,
+      "direction": "decreases_risk",
+      "standardized_importance": 0.5137
+    },
+    {
+      "feature": "eTIV",
+      "coefficient": -0.3741,
+      "odds_ratio": 0.6879,
+      "direction": "decreases_risk",
+      "standardized_importance": 0.3741
+    },
+    {
+      "feature": "ASF",
+      "coefficient": 0.201,
+      "odds_ratio": 1.2226,
+      "direction": "increases_risk",
+      "standardized_importance": 0.201
+    }
+  ],
+  "warning": "RESEARCH REFERENCE MODEL ONLY. This model is trained on the OASIS research cohort and is NOT clinically validated for NeuroAid standalone patient diagnosis. All predictions are screening risk indicators."
+}

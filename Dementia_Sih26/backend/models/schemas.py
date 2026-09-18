@@ -104,7 +104,43 @@ class DiseaseRiskLevels(BaseModel):
     dementia: str
     parkinsons: str
 
-# ── Response (V4) ──────────────────────────────────────────────────────────────
+# ── ML Layer A & B Analysis ───────────────────────────────────────────────────
+
+class MLBehavioralAnalysis(BaseModel):
+    status: str
+    anomaly_detected: bool = False
+    severity: str = "none"
+    anomaly_score: Optional[float] = None
+    raw_decision_score: Optional[float] = None
+    session_count: Optional[int] = None
+    min_history_required: Optional[int] = None
+    top_deviating_features: List[Dict[str, Any]] = Field(default_factory=list)
+    baseline_comparison: Dict[str, Any] = Field(default_factory=dict)
+    terminology: str = "Cognitive Performance Deviation"
+    message: Optional[str] = None
+
+class MLClinicalReference(BaseModel):
+    status: str
+    model: str = "OASIS_LogisticRegression"
+    probability: Optional[float] = None
+    risk_band: Optional[str] = None
+    explanations: List[Dict[str, Any]] = Field(default_factory=list)
+    message: Optional[str] = None
+    research_disclaimer: Optional[str] = None
+
+class MLCombinedIndicator(BaseModel):
+    available: bool = False
+    value: Optional[float] = None
+    label: Optional[str] = None
+    fusion_method: Optional[str] = None
+    components: Optional[Dict[str, Any]] = None
+
+class MLAnalysis(BaseModel):
+    behavioral: MLBehavioralAnalysis
+    clinical_reference: MLClinicalReference
+    combined_indicator: MLCombinedIndicator
+
+# ── Response (V4 / V5) ────────────────────────────────────────────────────────
 
 class AnalyzeResponse(BaseModel):
     # Domain scores (0–100, higher = healthier)
@@ -114,11 +150,15 @@ class AnalyzeResponse(BaseModel):
     executive_score: float
     motor_score: float
 
-    # Disease-specific probabilities (0–1)
-    alzheimers_risk: float
-    dementia_risk: float
-    parkinsons_risk: float
-    risk_levels: DiseaseRiskLevels
+    # Disease-specific probabilities (0–1) - DEPRECATED, kept for frontend compatibility
+    alzheimers_risk: Optional[float] = None
+    dementia_risk: Optional[float] = None
+    parkinsons_risk: Optional[float] = None
+    risk_levels: Optional[DiseaseRiskLevels] = None
+
+    # Multi-Modal ML Architecture (Layer A + Layer B + Fusion)
+    ml_analysis: Optional[MLAnalysis] = None
+    uncertainty: Optional[Dict[str, Any]] = None
 
     # V4 composite + wellness
     composite_risk_score: Optional[float] = None   # 0–100, higher = more risk

@@ -96,22 +96,16 @@ def compute_logistic_risk(
 
 def compute_confidence_interval(prob: float) -> dict:
     """
-    Compute an approximate 95% confidence interval for the risk probability.
-    Uncertainty is wider near 0.5 (most ambiguous) and narrower near 0 or 1.
-
-    CI = prob ± (base_se + boundary_factor)
-    Approximate SE based on probability magnitude.
+    Represent statistical uncertainty honestly without fabricating intervals.
     """
-    base_se       = 0.04  # base ±4%
-    boundary_bonus = max(0, 0.03 - abs(prob - 0.5) * 0.06)  # wider near 0.5
-    half_ci       = base_se + boundary_bonus
-    lower         = round(max(0.0, prob - half_ci), 4)
-    upper         = round(min(1.0, prob + half_ci), 4)
-    half_ci_pct   = round(half_ci * 100, 1)
     return {
-        "ci_lower": lower,
-        "ci_upper": upper,
-        "ci_label": f"{round(prob, 2)} (±{half_ci_pct:.0f}%)",
+        "ci_lower": None,
+        "ci_upper": None,
+        "ci_label": f"{round(prob * 100, 1)}%",
+        "uncertainty": {
+            "available": False,
+            "reason": "Formal statistical uncertainty requires model-specific estimation.",
+        },
     }
 
 
@@ -185,24 +179,31 @@ def compute_full_risk_pipeline(
     # Risk level (non-diagnostic language)
     level = map_risk_level_safe(prob)
 
+    # Model validation: loaded dynamically from Layer B or status
+    try:
+        import sys, os
+        sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+        from ml.clinical_model import get_clinical_model_validation_metrics
+        val_metrics = get_clinical_model_validation_metrics()
+    except Exception:
+        val_metrics = {
+            "status": "model_not_available",
+            "message": "Clinical reference model has not been trained locally.",
+        }
+
     return {
         "risk_probability":        round(prob, 4),
         "risk_level":              level,
         "ci_lower":                ci["ci_lower"],
         "ci_upper":                ci["ci_upper"],
         "ci_label":                ci["ci_label"],
+        "uncertainty":             ci["uncertainty"],
         "confidence":              fatigue_result["confidence"],
         "recommend_retest":        fatigue_result["recommend_retest"],
         "retest_message":          fatigue_result["retest_message"],
         "disclaimer":              SAFE_OUTPUT_LANGUAGE["disclaimer"],
         "adjusted_memory_score":   adj_memory,
-        # Simulated validation (see docs/SCORING_ENGINE.md)
-        "validation": {
-            "sensitivity": 0.82,
-            "specificity": 0.78,
-            "auc":         0.85,
-            "note":        "Simulated validation due to absence of clinical dataset.",
-        },
+        "validation":              val_metrics,
     }
 
 

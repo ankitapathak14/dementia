@@ -1,0 +1,27 @@
+[
+  {
+    "session_id": "1b86839a-6abf-48dc-ac4d-3a9ed1518869",
+    "client_action_id": "58436011-e142-4ad0-bf7d-a52060f76f0f",
+    "user_id": "62016f45-d650-4f1e-b21a-065d81d92127",
+    "mode": "memory_connection",
+    "music_ids": [
+      "song-02"
+    ],
+    "duration_seconds": 60.0,
+    "recognition_correct": 0,
+    "recognition_total": 0,
+    "recognition_pct": null,
+    "tap_count": 0,
+    "rhythm_engagement_pct": null,
+    "voice_participated": false,
+    "voice_duration_seconds": 0.0,
+    "memory_responses": [],
+    "mood_responses": [
+      "familiar"
+    ],
+    "rounds": [],
+    "engagement_label": "Wonderful session participation!",
+    "encouragement": "\ud83c\udfb6 Thank you for sharing this musical moment!",
+    "timestamp": "2026-09-18T14:41:55+00:00"
+  }
+]

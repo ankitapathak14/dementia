@@ -26,102 +26,19 @@ from models.schemas import (
 )
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# DISEASE MODEL WEIGHTS
-# Each row: [wpm, speed_dev, speech_var, pause_ratio, start_delay,
-#            imm_recall, del_recall, intrusions, latency, order_ratio,
-#            mean_rt, std_rt, min_rt, drift, misses,
-#            stroop_err, stroop_rt, tap_std]
-# Positive weight = higher feature value increases disease risk.
-# Weights tuned to match known neurological profiles.
+# CLINICAL BENCHMARK LEVEL MAPPING (Non-diagnostic)
 # ═══════════════════════════════════════════════════════════════════════════════
 
-# Alzheimer's: dominated by memory decline + word-finding difficulties
-ALZ_WEIGHTS = np.array([
-    -0.100,  # wpm (slower speech ↑ risk, mild)
-     0.080,  # speed_deviation
-     0.060,  # speech_variability
-     0.150,  # pause_ratio (high pauses ↑ risk — word finding)
-     0.050,  # speech_start_delay
-    -0.300,  # immediate_recall_accuracy (lower = higher risk — PRIMARY)
-    -0.350,  # delayed_recall_accuracy (strongest Alz marker — PRIMARY)
-     0.200,  # intrusion_count (strong Alz marker)
-     0.150,  # recall_latency
-    -0.200,  # order_match_ratio
-     0.030,  # mean_rt (minor)
-     0.020,  # std_rt
-     0.010,  # min_rt
-     0.030,  # reaction_drift
-     0.050,  # miss_count
-     0.050,  # stroop_error_rate
-     0.020,  # stroop_rt
-     0.020,  # tap_interval_std
-])
-ALZ_BIAS = 0.20
-
-# Dementia (general): attention + processing speed + broad cognitive decline
-DEM_WEIGHTS = np.array([
-    -0.080,  # wpm
-     0.050,  # speed_deviation
-     0.050,  # speech_variability
-     0.080,  # pause_ratio
-     0.060,  # speech_start_delay
-    -0.200,  # immediate_recall_accuracy
-    -0.180,  # delayed_recall_accuracy
-     0.120,  # intrusion_count
-     0.100,  # recall_latency
-    -0.120,  # order_match_ratio
-     0.250,  # mean_rt (STRONG — processing speed)
-     0.200,  # std_rt (STRONG — attention instability)
-     0.100,  # min_rt
-     0.180,  # reaction_drift
-     0.250,  # miss_count (PRIMARY — sustained attention)
-     0.300,  # stroop_error_rate (PRIMARY — executive function)
-     0.150,  # stroop_rt
-     0.080,  # tap_interval_std
-])
-DEM_BIAS = -0.30
-
-# Parkinson's: motor timing + initiation + reaction consistency
-PARK_WEIGHTS = np.array([
-    -0.150,  # wpm (hypophonia, slow speech)
-     0.120,  # speed_deviation
-     0.180,  # speech_variability (monotone/dysrhythmic)
-     0.100,  # pause_ratio
-     0.200,  # speech_start_delay (initiation delay — PRIMARY)
-    -0.050,  # immediate_recall_accuracy (mild)
-    -0.050,  # delayed_recall_accuracy
-     0.050,  # intrusion_count
-     0.080,  # recall_latency
-    -0.050,  # order_match_ratio
-     0.300,  # mean_rt (PRIMARY — bradykinesia)
-     0.250,  # std_rt (PRIMARY — motor inconsistency)
-     0.200,  # min_rt (slow even at best)
-     0.150,  # reaction_drift
-     0.200,  # miss_count
-     0.080,  # stroop_error_rate
-     0.100,  # stroop_rt
-     0.400,  # tap_interval_std (PRIMARY — rhythmic motor control)
-])
-PARK_BIAS = -0.50
-
-
-def _sigmoid(x: float) -> float:
-    return 1.0 / (1.0 + np.exp(-x))
-
-
-def _predict_disease(feature_vec: np.ndarray, weights: np.ndarray, bias: float) -> float:
-    """Logistic regression forward pass."""
-    logit = float(np.dot(weights, feature_vec)) + bias
-    return round(float(_sigmoid(logit)), 3)
-
-
-def _prob_to_level(prob: float) -> str:
+def _prob_to_level(prob: Optional[float]) -> str:
+    if prob is None:
+        return "N/A"
     if prob < 0.35:
         return "Low"
     elif prob < 0.65:
         return "Moderate"
     else:
         return "High"
+
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -286,59 +203,33 @@ def extract_motor_features(tap: Optional[TapData] = None) -> tuple[float, dict]:
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# DISEASE RISK COMPUTATION
+# DISEASE RISK INTERFACE (DEPRECATED - RETAINED FOR API BACKWARD COMPATIBILITY)
 # ═══════════════════════════════════════════════════════════════════════════════
 
 def compute_disease_risks(fv: FeatureVector, profile: Optional[UserProfile] = None) -> dict:
     """
-    Build the 18-element feature vector and run three separate logistic models.
-    Raw features are normalised to roughly [0, 1] range before scoring.
+    DEPRECATED: Hardcoded disease-specific heuristic weights have been permanently removed.
+    Clinical reference probability is now estimated through Layer B (OASIS reference model)
+    when clinical parameters are provided.
     """
-    vec = np.array([
-        fv.wpm / 200.0,
-        fv.speed_deviation / 50.0,
-        fv.speech_variability / 30.0,
-        fv.pause_ratio,
-        fv.speech_start_delay / 5.0,
-        fv.immediate_recall_accuracy / 100.0,
-        fv.delayed_recall_accuracy / 100.0,
-        fv.intrusion_count / 10.0,
-        fv.recall_latency / 15.0,
-        fv.order_match_ratio,
-        fv.mean_rt / 800.0,
-        fv.std_rt / 300.0,
-        fv.min_rt / 600.0,
-        fv.reaction_drift / 300.0,
-        fv.miss_count / 10.0,
-        fv.stroop_error_rate,
-        fv.stroop_rt / 1000.0,
-        fv.tap_interval_std / 200.0,
-    ])
-
-    alz_prob  = _predict_disease(vec, ALZ_WEIGHTS,  ALZ_BIAS)
-    dem_prob  = _predict_disease(vec, DEM_WEIGHTS,  DEM_BIAS)
-    park_prob = _predict_disease(vec, PARK_WEIGHTS, PARK_BIAS)
-
-    # Clinical profile adjustment (gentle nudge, not dominant)
-    if profile:
-        alz_adj = dem_adj = park_adj = 0.0
-        if profile.age and profile.age > 65:
-            alz_adj  += 0.04
-            dem_adj  += 0.03
-            park_adj += 0.03
-        if profile.sleep_hours and profile.sleep_hours < 6:
-            dem_adj += 0.03
-        if profile.education_level and profile.education_level >= 4:
-            alz_adj  -= 0.03
-            dem_adj  -= 0.02
-        alz_prob  = float(np.clip(alz_prob  + alz_adj,  0, 1))
-        dem_prob  = float(np.clip(dem_prob  + dem_adj,  0, 1))
-        park_prob = float(np.clip(park_prob + park_adj, 0, 1))
+    clinical_prob = None
+    if profile and profile.age is not None:
+        try:
+            from ml.clinical_model import predict_clinical_reference
+            clin_input = {
+                "Age": profile.age,
+                "EDUC": float(profile.education_level * 4) if profile.education_level else 12.0,
+            }
+            res = predict_clinical_reference(clin_input)
+            if res.get("status") == "available":
+                clinical_prob = res.get("probability")
+        except Exception:
+            clinical_prob = None
 
     return {
-        "alzheimers_risk": alz_prob,
-        "dementia_risk":   dem_prob,
-        "parkinsons_risk": park_prob,
+        "alzheimers_risk": clinical_prob,
+        "dementia_risk": clinical_prob,
+        "parkinsons_risk": None,
     }
 
 
