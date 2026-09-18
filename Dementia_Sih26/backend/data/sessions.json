@@ -83,5 +83,10 @@
     "user_id": "test_rhythm_user",
     "created_at": "2026-09-18T15:29:46+00:00",
     "last_active": "2026-09-18T15:29:46+00:00"
+  },
+  "24d9426aa9b7af35996365a8ff92fb44b975ed6abcf837fa8603ccdbd5423d95": {
+    "user_id": "62016f45-d650-4f1e-b21a-065d81d92127",
+    "created_at": "2026-09-18T15:37:14+00:00",
+    "last_active": "2026-09-18T15:39:54+00:00"
   }
 }
