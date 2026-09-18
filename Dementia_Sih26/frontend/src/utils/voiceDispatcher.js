@@ -143,6 +143,16 @@ export function dispatchVoiceCommand(rawText, setPage, t = (k, d) => d) {
         label: "Of course. Let's open Rhythm and Recall.",
       };
 
+    case "VOICE_VILLAGE":
+      if (setPage) setPage("game-village");
+      return {
+        handled: true,
+        action: "NAVIGATE",
+        page: "game-village",
+        speakText: "Of course. Opening Voice of the Village.",
+        label: "Of course. Opening Voice of the Village.",
+      };
+
     case "GO_HOME":
       if (setPage) setPage("dashboard");
       return {
