@@ -1,12 +1,17 @@
 # Dependencies
 node_modules/
+**/node_modules/
 
 # Python cache
 __pycache__/
+**/__pycache__/
 *.py[cod]
+.pytest_cache/
+**/.pytest_cache/
 
 # Vite cache
 .vite/
+**/.vite/
 
 # Environment files
 .env
@@ -14,3 +19,4 @@ __pycache__/
 
 # Build output
 dist/
+**/dist/

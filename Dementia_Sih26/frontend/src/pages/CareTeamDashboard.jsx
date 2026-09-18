@@ -518,6 +518,111 @@ export default function CareTeamDashboard({ doctor = false }) {
             <RhythmAnalytics patientId={detail.patient_id} />
           </div>
 
+          {/* Cognitive Games & Auditory Memory Training Activity */}
+          <div style={{ marginTop: 24 }}>
+            <Card
+              title="Cognitive Training & Auditory Recall Activity"
+              icon="🌾"
+              badge={{
+                text: `${detail.game_activity?.length || 0} Recent Sessions`,
+                style: { background: "rgba(16,185,129,0.15)", color: "#10b981", border: "1px solid rgba(16,185,129,0.3)" },
+              }}
+            >
+              <p style={{ color: "#94a3b8", fontSize: 13, marginTop: 0, marginBottom: 16 }}>
+                Longitudinal cognitive training logs including Voice of the Village auditory stories, sequence recall, and procedural orientation tasks:
+              </p>
+
+              {detail.game_activity && detail.game_activity.length > 0 ? (
+                <div style={{ display: "grid", gap: 12 }}>
+                  {[...detail.game_activity].reverse().slice(0, 5).map((sess, idx) => {
+                    const isVillage = sess.game_id === "voice_village";
+                    const isAdaptiveUp = sess.adaptive_difficulty?.adjustment === "increase";
+                    return (
+                      <div
+                        key={sess.session_id || idx}
+                        style={{
+                          background: isVillage ? "rgba(16,185,129,0.06)" : "rgba(255,255,255,0.03)",
+                          border: isVillage ? "1px solid rgba(16,185,129,0.25)" : "1px solid rgba(255,255,255,0.06)",
+                          borderRadius: 14,
+                          padding: "14px 18px",
+                          display: "flex",
+                          justifyContent: "space-between",
+                          alignItems: "center",
+                          flexWrap: "wrap",
+                          gap: 12,
+                        }}
+                      >
+                        <div>
+                          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+                            <span style={{ fontSize: 18 }}>{isVillage ? "🌾" : "🎮"}</span>
+                            <strong style={{ fontSize: 15, color: isVillage ? "#6ee7b7" : "#f8fafc" }}>
+                              {sess.game_title || (isVillage ? "Voice of the Village" : "Brain Game")}
+                            </strong>
+                            <span
+                              style={{
+                                fontSize: 11,
+                                color: "#94a3b8",
+                                background: "rgba(255,255,255,0.06)",
+                                padding: "2px 8px",
+                                borderRadius: 6,
+                              }}
+                            >
+                              {sess.domain_label || sess.cognitive_domain || "Cognitive Focus"}
+                            </span>
+                          </div>
+                          <div style={{ fontSize: 12, color: "#94a3b8" }}>
+                            {sess.timestamp ? new Date(sess.timestamp).toLocaleString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }) : "Recent"}
+                            {sess.duration_seconds ? ` · Duration: ${sess.duration_seconds}s` : ""}
+                            {sess.telemetry?.replays_count ? ` · Replays: ${sess.telemetry.replays_count}` : ""}
+                          </div>
+                        </div>
+
+                        <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+                          <div style={{ textAlign: "right" }}>
+                            <div style={{ fontSize: 16, fontWeight: 900, color: "#c8f135" }}>
+                              {Math.round(sess.score || 0)}%
+                            </div>
+                            <div style={{ fontSize: 11, color: "#fbbf24" }}>
+                              {"⭐".repeat(sess.stars || 3)}
+                            </div>
+                          </div>
+
+                          <div
+                            style={{
+                              padding: "4px 10px",
+                              borderRadius: 8,
+                              background: isAdaptiveUp ? "rgba(16,185,129,0.15)" : "rgba(255,255,255,0.06)",
+                              border: isAdaptiveUp ? "1px solid rgba(16,185,129,0.3)" : "1px solid rgba(255,255,255,0.1)",
+                              fontSize: 12,
+                              color: isAdaptiveUp ? "#86efac" : "#cbd5e1",
+                              fontWeight: 700,
+                              textAlign: "center",
+                            }}
+                          >
+                            Level {sess.difficulty_level || 1}
+                            {sess.adaptive_difficulty?.new_level && sess.adaptive_difficulty.new_level !== sess.difficulty_level && (
+                              <div style={{ fontSize: 10, color: "#c8f135" }}>
+                                → Lvl {sess.adaptive_difficulty.new_level}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div style={{ color: "#64748b", fontSize: 13, padding: "12px 0" }}>
+                  No cognitive training sessions logged yet. Encourage patient to try Voice of the Village Level 1.
+                </div>
+              )}
+
+              <div style={{ fontSize: 11, color: "#64748b", marginTop: 14 }}>
+                Activity and engagement observation for clinical and care team review. Not a medical diagnosis.
+              </div>
+            </Card>
+          </div>
+
           {/* ALERT DETAILS MODAL DIALOG */}
           {selectedAlert && (
             <div

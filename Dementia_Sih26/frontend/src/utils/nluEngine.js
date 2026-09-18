@@ -44,12 +44,12 @@ export function parseNaturalIntent(rawText, currentContext = {}) {
     return { intent: "READ_PAGE", confidence: 0.95, rawText };
   }
 
-  // 4. MUSIC REPLAY / Play Again
+  // 4. MUSIC REPLAY / Play Again / Listen Again
   if (
-    /replay|play.*again|hear.*again|repeat|once more|one more time|play that again|can you play that again|आकৌ বজাওক|আবার বাজাও|फिर से बजाओ/.test(text) &&
+    /replay|play.*again|hear.*again|listen.*again|repeat|once more|one more time|play that again|can you play that again|story again|কাহিনী আকৌ|আবার গল্প|আবার বাজাও|फिर से कहानी|फिर से बजाओ/.test(text) &&
     !text.includes("game")
   ) {
-    return { intent: "REPLAY", confidence: 0.94, extractedData: { target: "current_song" }, rawText };
+    return { intent: "REPLAY", confidence: 0.94, extractedData: { target: "current_item" }, rawText };
   }
 
   // 5. ANOTHER SONG / Next Song
@@ -95,10 +95,13 @@ export function parseNaturalIntent(rawText, currentContext = {}) {
     return { intent: "APPOINTMENTS", confidence: 0.93, rawText };
   }
 
-  // 11. GAMES / Brain Games / Rhythm & Recall
+  // 11. GAMES / Brain Games / Rhythm & Recall / Voice of the Village
   if (
-    /game|play|something to play|rhythm and recall|brain training|music game|খেল|গেম|खेल/.test(text)
+    /game|play|something to play|rhythm and recall|brain training|music game|voice of the village|village|গাঁৱৰ|গাँव|খেল|গেম|खेल/.test(text)
   ) {
+    if (text.includes("village") || text.includes("গাঁৱৰ") || text.includes("গাँव") || text.includes("খুঙ্গং")) {
+      return { intent: "VOICE_VILLAGE", confidence: 0.96, rawText };
+    }
     if (text.includes("rhythm") || text.includes("recall") || text.includes("music")) {
       return { intent: "RHYTHM_RECALL", confidence: 0.95, rawText };
     }

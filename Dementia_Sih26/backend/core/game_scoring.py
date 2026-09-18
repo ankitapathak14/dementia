@@ -48,6 +48,13 @@ DOMAINS = {
         "icon": "🌅",
         "color": "#fb923c",
     },
+    "AUDITORY_MEMORY": {
+        "id": "auditory_memory",
+        "label": "Auditory Memory & Recall",
+        "description": "Short story comprehension, verbal retention, and auditory recognition.",
+        "icon": "🌾",
+        "color": "#10b981",
+    },
 }
 
 # ── Game Catalog Metadata ─────────────────────────────────────────────────────
@@ -128,6 +135,21 @@ GAMES_CATALOGUE = {
             "as": "পুৱাৰ পৰা ৰাতিলৈকে আপুনি কৰা কামবোৰ সঠিক ক্ৰমত সজাওক।",
         },
     },
+    "voice_village": {
+        "id": "voice_village",
+        "title": "Voice of the Village",
+        "tagline": "Listen to familiar stories and recall simple details",
+        "description": "Engage auditory memory through gentle, everyday community stories from North Eastern village life.",
+        "cognitive_domain": "AUDITORY_MEMORY",
+        "domain_label": DOMAINS["AUDITORY_MEMORY"]["label"],
+        "icon": "🌾",
+        "accent_color": "#10b981",
+        "levels": [1, 2, 3],
+        "instructions": {
+            "en": "Listen carefully to the short story. When asked, choose the answer that you remember.",
+            "as": "চুটি কাহিনীটো ভালদৰে শুনক। সোধাৰ পিছত আপুনি মনত থকা উত্তৰটো বাছক।",
+        },
+    },
 }
 
 
@@ -167,7 +189,7 @@ def calculate_game_score(
             efficiency = max(0.4, 1.0 - (excess_moves * 0.05))
             mistake_penalty = min(30.0, mistakes_count * 5.0)
             raw_score = (efficiency * 100.0) - mistake_penalty
-        elif game_id in {"sequence_recall", "pattern_completion", "daily_routine", "object_recognition"}:
+        elif game_id in {"sequence_recall", "pattern_completion", "daily_routine", "object_recognition", "voice_village"}:
             base = 100.0
             mistake_penalty = mistakes_count * 12.0
             # Mild time penalty if hesitation > 60s

@@ -83,6 +83,11 @@ def get_game_config(game_id: str) -> Dict[str, Any]:
             2: {"card_count": 4, "name": "Daily Flow (4 steps)"},
             3: {"card_count": 5, "name": "Full Day (5 steps)"},
         },
+        "voice_village": {
+            1: {"options_count": 2, "rounds": 3, "name": "Direct Recall (2 choices)"},
+            2: {"options_count": 3, "rounds": 3, "name": "Object Recall (3 choices)"},
+            3: {"options_count": 4, "rounds": 4, "name": "Detail Recall (3-4 choices)"},
+        },
     }
 
     return {
