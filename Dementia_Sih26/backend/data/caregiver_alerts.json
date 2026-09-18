@@ -1,0 +1,10 @@
+{
+  "test_alert_patient_99": {
+    "alert_medi_89f13c8f19b8": {
+      "status": "new",
+      "reviewed_at": null,
+      "reviewed_by": null,
+      "updated_at": "2026-09-17T21:00:46+00:00"
+    }
+  }
+}

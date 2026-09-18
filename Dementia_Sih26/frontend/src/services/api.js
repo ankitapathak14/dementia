@@ -176,6 +176,9 @@ export async function submitGameSession(payload) {
 
 export const getCareDashboard = () => request("GET", "/dashboard/patients", null, true);
 export const getCarePatientDashboard = patientId => request("GET", `/dashboard/patient/${patientId}`, null, true);
+export const getCaregiverAlerts = patientId => request("GET", `/dashboard/patient/${patientId}/alerts`, null, true);
+export const reviewCaregiverAlert = (patientId, alertId, status = "reviewed") =>
+  request("POST", `/dashboard/patient/${patientId}/alerts/${alertId}/review`, { status }, true);
 
 export async function getGameHistory() {
   const token = getToken();

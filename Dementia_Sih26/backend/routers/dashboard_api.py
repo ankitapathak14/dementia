@@ -18,7 +18,7 @@ from core.storage import (
     routine_logs_store,
 )
 from routers.consent_api import check_patient_consent
-from services import audit_service, auth_service
+from services import audit_service, auth_service, caregiver_alert_service
 
 router = APIRouter(prefix="/dashboard", tags=["dashboards"])
 
@@ -105,6 +105,8 @@ def detail(patient_id: str, authorization: str = Header(...)) -> Dict[str, Any]:
     latest = results[-1] if results else None
     reminders = [row for row in reminders_store.read() if row.get("user_id") == patient_id]
 
+    caregiver_alerts = caregiver_alert_service.evaluate_caregiver_alerts(patient_id)
+
     payload: Dict[str, Any] = {
         "patient_id": patient_id,
         "screening_signal": signal(latest),
@@ -116,6 +118,7 @@ def detail(patient_id: str, authorization: str = Header(...)) -> Dict[str, Any]:
             row.get("glasses", 0) for row in routine_logs_store.read() if row.get("user_id") == patient_id and row.get("type") == "hydration"
         ),
         "alerts": [signal(latest)] if latest else [],
+        "caregiver_alerts": caregiver_alerts,
         "memory_bank": [row for row in memory_bank_store.read() if row.get("user_id") == patient_id],
     }
 
@@ -145,3 +148,66 @@ def detail(patient_id: str, authorization: str = Header(...)) -> Dict[str, Any]:
         outcome="success",
     )
     return payload
+
+
+@router.get("/patient/{patient_id}/alerts")
+def get_patient_alerts(patient_id: str, authorization: str = Header(...)) -> Dict[str, Any]:
+    """Retrieve evaluated caregiver alerts for a patient."""
+    user = member(authorization)
+    verify_patient_access(user, patient_id)
+
+    alerts = caregiver_alert_service.evaluate_caregiver_alerts(patient_id)
+    audit_service.record(
+        event="caregiver_alerts.read",
+        actor_id=user["id"],
+        actor_role=user.get("role"),
+        subject_id=patient_id,
+        outcome="success",
+        metadata={"count": len(alerts)},
+    )
+    return {
+        "patient_id": patient_id,
+        "alerts": alerts,
+        "active_count": sum(1 for a in alerts if a.get("status") == "new"),
+        "total_count": len(alerts),
+    }
+
+
+@router.post("/patient/{patient_id}/alerts/{alert_id}/review")
+def review_alert(
+    patient_id: str,
+    alert_id: str,
+    payload: Optional[Dict[str, Any]] = None,
+    authorization: str = Header(...),
+) -> Dict[str, Any]:
+    """Mark a caregiver alert as reviewed (or toggle back to new)."""
+    user = member(authorization)
+    verify_patient_access(user, patient_id)
+
+    target_status = "reviewed"
+    if payload and "status" in payload:
+        target_status = payload["status"]
+
+    updated = caregiver_alert_service.mark_alert_status(
+        patient_id=patient_id,
+        alert_id=alert_id,
+        status=target_status,
+        reviewer_id=user["id"],
+    )
+
+    audit_service.record(
+        event="caregiver_alerts.status_updated",
+        actor_id=user["id"],
+        actor_role=user.get("role"),
+        subject_id=patient_id,
+        outcome="success",
+        metadata={"alert_id": alert_id, "status": target_status},
+    )
+
+    return {
+        "patient_id": patient_id,
+        "alert_id": alert_id,
+        "review_state": updated,
+        "message": f"Alert marked as {target_status}.",
+    }
+

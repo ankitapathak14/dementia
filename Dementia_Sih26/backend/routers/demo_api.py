@@ -8,11 +8,13 @@ never a clinical diagnosis.
 """
 from __future__ import annotations
 
+from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List
 from fastapi import APIRouter
 
 from core.security import hash_password, hash_token
 from core.storage import (
+    caregiver_alerts_store,
     consent_store,
     game_sessions_store,
     memory_bank_store,
@@ -28,6 +30,7 @@ from services.audit_service import record, utcnow_iso
 router = APIRouter(prefix="/demo", tags=["sih-demo"])
 
 DEMO_PATIENT_ID = "sih-demo-patient-001"
+DEMO_PATIENT_2_ID = "sih-demo-patient-002"
 DEMO_DOCTOR_ID = "sih-demo-doctor-001"
 DEMO_CAREGIVER_ID = "sih-demo-caregiver-001"
 
@@ -75,8 +78,8 @@ def reset_and_seed_demo() -> Dict[str, Any]:
         "consultation_mode": "Both",
         "bio": "Specialist in neurodegenerative screening, MCI longitudinal monitoring, and community cognitive health.",
         "max_patients": 20,
-        "current_patients": 1,
-        "patient_list": [DEMO_PATIENT_ID],
+        "current_patients": 2,
+        "patient_list": [DEMO_PATIENT_ID, DEMO_PATIENT_2_ID],
         "pending_requests": [],
         "created_at": now,
         "last_login": now,
@@ -91,13 +94,31 @@ def reset_and_seed_demo() -> Dict[str, Any]:
         "specialization": "Family Caregiver",
         "hospital": "Home Care Network, Assam",
         "location": "Guwahati, Assam",
-        "patient_list": [DEMO_PATIENT_ID],
+        "patient_list": [DEMO_PATIENT_ID, DEMO_PATIENT_2_ID],
+        "created_at": now,
+        "last_login": now,
+    }
+
+    patient_2 = {
+        "id": DEMO_PATIENT_2_ID,
+        "full_name": "Pradip Borah (Demo Inactive)",
+        "email": "pradip.borah@sihdemo.local",
+        "password_hash": hash_password("DemoPassword#2026"),
+        "role": "patient",
+        "age": 72,
+        "gender": "Male",
+        "phone": "+91 98640 54321",
+        "assigned_doctor_id": DEMO_DOCTOR_ID,
+        "education": "High School",
+        "occupation": "Retired Postmaster (Tezpur, Assam)",
+        "location": "Tezpur, Assam",
         "created_at": now,
         "last_login": now,
     }
 
     users = users_store.read()
     users[DEMO_PATIENT_ID] = patient
+    users[DEMO_PATIENT_2_ID] = patient_2
     users[DEMO_DOCTOR_ID] = doctor
     users[DEMO_CAREGIVER_ID] = caregiver
     users_store.write(users)
@@ -112,6 +133,14 @@ def reset_and_seed_demo() -> Dict[str, Any]:
     # 3. Synthetic Consent
     consents = consent_store.read()
     consents[DEMO_PATIENT_ID] = {
+        "share_with_care_team": True,
+        "share_memory_bank": True,
+        "share_reminders": True,
+        "allow_research_deidentified": True,
+        "updated_at": now,
+        "policy_version": "2026-v2-sih-demo",
+    }
+    consents[DEMO_PATIENT_2_ID] = {
         "share_with_care_team": True,
         "share_memory_bank": True,
         "share_reminders": True,
@@ -187,6 +216,22 @@ def reset_and_seed_demo() -> Dict[str, Any]:
     # 5. Synthetic Reminders
     reminders: List[Dict[str, Any]] = [
         {
+            "id": "rem-sih-000",
+            "user_id": DEMO_PATIENT_ID,
+            "category": "daily_activity",
+            "title": "Morning Breakfast & Assam Tea",
+            "description": "Nutritious morning meal with warm tea",
+            "scheduled_time": "08:30",
+            "recurrence": "daily",
+            "days_of_week": ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
+            "dosage": None,
+            "instructions": "Completed after wake-up",
+            "status": "completed",
+            "last_completed_at": now,
+            "created_by": "caregiver",
+            "created_at": now,
+        },
+        {
             "id": "rem-sih-001",
             "user_id": DEMO_PATIENT_ID,
             "category": "medicine",
@@ -222,7 +267,7 @@ def reset_and_seed_demo() -> Dict[str, Any]:
             "id": "rem-sih-003",
             "user_id": DEMO_PATIENT_ID,
             "category": "activity",
-            "title": "Evening Walk & Breathing (সন্ধিয়া খোজকঢ়া)",
+            "title": "Evening Walk & Breathing (সন্ধিয়া খোজকঢ়a)",
             "description": "Light walk in the garden",
             "scheduled_time": "17:00",
             "recurrence": "daily",
@@ -235,7 +280,7 @@ def reset_and_seed_demo() -> Dict[str, Any]:
             "created_at": now,
         },
     ]
-    existing_rem = [r for r in reminders_store.read() if r.get("user_id") != DEMO_PATIENT_ID]
+    existing_rem = [r for r in reminders_store.read() if r.get("user_id") not in (DEMO_PATIENT_ID, DEMO_PATIENT_2_ID)]
     reminders_store.write(existing_rem + reminders)
 
     # 6. Synthetic 6-Week Longitudinal Assessments & Explainable Alerts
@@ -358,17 +403,168 @@ def reset_and_seed_demo() -> Dict[str, Any]:
     all_res[DEMO_PATIENT_ID] = synthetic_results
     results_store.write(all_res)
 
+    # 7. Synthetic Cognitive Game Sessions for SIH PS 26003
+    # Memory Match: 3 baseline sessions (avg 81.7%) vs 3 recent sessions (51%, 48%, 46% -> avg 48.3%, drop -33.4%)
+    now_dt = datetime.now(timezone.utc)
+    synthetic_game_sessions = [
+        # Baseline sessions (7, 6, 5 days ago)
+        {
+            "session_id": "sess-sih-001",
+            "user_id": DEMO_PATIENT_ID,
+            "game_id": "memory_match",
+            "game_title": "Memory Match",
+            "cognitive_domain": "Visual Association & Working Memory",
+            "domain_label": "Visual Memory",
+            "difficulty_level": 1,
+            "score": 85,
+            "stars": 3,
+            "stars_label": "3/3 Stars",
+            "performance_level": "Good",
+            "feedback_message": "Strong memory performance.",
+            "duration_seconds": 45,
+            "moves_count": 8,
+            "mistakes_count": 1,
+            "completed": True,
+            "timestamp": (now_dt - timedelta(days=7)).isoformat(),
+        },
+        {
+            "session_id": "sess-sih-002",
+            "user_id": DEMO_PATIENT_ID,
+            "game_id": "memory_match",
+            "game_title": "Memory Match",
+            "cognitive_domain": "Visual Association & Working Memory",
+            "domain_label": "Visual Memory",
+            "difficulty_level": 1,
+            "score": 82,
+            "stars": 3,
+            "stars_label": "3/3 Stars",
+            "performance_level": "Good",
+            "feedback_message": "Consistent visual recall.",
+            "duration_seconds": 48,
+            "moves_count": 9,
+            "mistakes_count": 1,
+            "completed": True,
+            "timestamp": (now_dt - timedelta(days=6)).isoformat(),
+        },
+        {
+            "session_id": "sess-sih-003",
+            "user_id": DEMO_PATIENT_ID,
+            "game_id": "memory_match",
+            "game_title": "Memory Match",
+            "cognitive_domain": "Visual Association & Working Memory",
+            "domain_label": "Visual Memory",
+            "difficulty_level": 1,
+            "score": 78,
+            "stars": 3,
+            "stars_label": "3/3 Stars",
+            "performance_level": "Good",
+            "feedback_message": "Steady pacing.",
+            "duration_seconds": 52,
+            "moves_count": 10,
+            "mistakes_count": 2,
+            "completed": True,
+            "timestamp": (now_dt - timedelta(days=5)).isoformat(),
+        },
+        # Recent sessions (2 days ago, yesterday, today) - repeated difficulty and sudden drop
+        {
+            "session_id": "sess-sih-004",
+            "user_id": DEMO_PATIENT_ID,
+            "game_id": "memory_match",
+            "game_title": "Memory Match",
+            "cognitive_domain": "Visual Association & Working Memory",
+            "domain_label": "Visual Memory",
+            "difficulty_level": 2,
+            "score": 51,
+            "stars": 1,
+            "stars_label": "1/3 Stars",
+            "performance_level": "Needs Review",
+            "feedback_message": "Elevated hesitation latency.",
+            "duration_seconds": 88,
+            "moves_count": 16,
+            "mistakes_count": 5,
+            "completed": True,
+            "timestamp": (now_dt - timedelta(days=2)).isoformat(),
+        },
+        {
+            "session_id": "sess-sih-005",
+            "user_id": DEMO_PATIENT_ID,
+            "game_id": "memory_match",
+            "game_title": "Memory Match",
+            "cognitive_domain": "Visual Association & Working Memory",
+            "domain_label": "Visual Memory",
+            "difficulty_level": 2,
+            "score": 48,
+            "stars": 1,
+            "stars_label": "1/3 Stars",
+            "performance_level": "Needs Review",
+            "feedback_message": "Multiple mis-matches observed.",
+            "duration_seconds": 95,
+            "moves_count": 18,
+            "mistakes_count": 6,
+            "completed": True,
+            "timestamp": (now_dt - timedelta(days=1)).isoformat(),
+        },
+        {
+            "session_id": "sess-sih-006",
+            "user_id": DEMO_PATIENT_ID,
+            "game_id": "memory_match",
+            "game_title": "Memory Match",
+            "cognitive_domain": "Visual Association & Working Memory",
+            "domain_label": "Visual Memory",
+            "difficulty_level": 2,
+            "score": 46,
+            "stars": 1,
+            "stars_label": "1/3 Stars",
+            "performance_level": "Needs Review",
+            "feedback_message": "Consider Level 1 pacing.",
+            "duration_seconds": 102,
+            "moves_count": 20,
+            "mistakes_count": 7,
+            "completed": True,
+            "timestamp": now,
+        },
+        # Pradip Borah (inactive patient): 1 session 5 days ago, 0 sessions in last 5 days
+        {
+            "session_id": "sess-sih-007",
+            "user_id": DEMO_PATIENT_2_ID,
+            "game_id": "memory_match",
+            "game_title": "Memory Match",
+            "cognitive_domain": "Visual Association & Working Memory",
+            "domain_label": "Visual Memory",
+            "difficulty_level": 1,
+            "score": 68,
+            "stars": 2,
+            "stars_label": "2/3 Stars",
+            "performance_level": "Moderate",
+            "feedback_message": "Routine session completed.",
+            "duration_seconds": 65,
+            "moves_count": 12,
+            "mistakes_count": 3,
+            "completed": True,
+            "timestamp": (now_dt - timedelta(days=5, hours=2)).isoformat(),
+        },
+    ]
+    existing_sessions = [s for s in game_sessions_store.read() if s.get("user_id") not in (DEMO_PATIENT_ID, DEMO_PATIENT_2_ID)]
+    game_sessions_store.write(existing_sessions + synthetic_game_sessions)
+
+    # 8. Reset Caregiver Alert Review States for Demo Reset
+    alerts_data = caregiver_alerts_store.read()
+    alerts_data.pop(DEMO_PATIENT_ID, None)
+    alerts_data.pop(DEMO_PATIENT_2_ID, None)
+    caregiver_alerts_store.write(alerts_data)
+
     record(
         event="demo.seeded",
         actor_id="sih_system",
         outcome="success",
-        metadata={"patient_id": DEMO_PATIENT_ID, "doctor_id": DEMO_DOCTOR_ID},
+        metadata={"patient_id": DEMO_PATIENT_ID, "patient_2_id": DEMO_PATIENT_2_ID, "doctor_id": DEMO_DOCTOR_ID},
     )
 
     return {
         "status": "ok",
         "message": "SIH deterministic demo data initialized successfully.",
         "patient": {"id": DEMO_PATIENT_ID, "name": patient["full_name"], "token": DEMO_PATIENT_TOKEN},
+        "patient_inactive": {"id": DEMO_PATIENT_2_ID, "name": patient_2["full_name"]},
         "doctor": {"id": DEMO_DOCTOR_ID, "name": doctor["full_name"], "token": DEMO_DOCTOR_TOKEN},
         "caregiver": {"id": DEMO_CAREGIVER_ID, "name": caregiver["full_name"], "token": DEMO_CAREGIVER_TOKEN},
     }
