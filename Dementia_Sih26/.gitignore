@@ -1,0 +1,16 @@
+# Dependencies
+node_modules/
+
+# Python cache
+__pycache__/
+*.py[cod]
+
+# Vite cache
+.vite/
+
+# Environment files
+.env
+.env.*
+
+# Build output
+dist/

@@ -93,3 +93,7 @@ consent_store = JsonStore(settings.data_dir / "consents.json", dict)
 rhythm_music_store = JsonStore(settings.data_dir / "rhythm_music.json", list)
 rhythm_sessions_store = JsonStore(settings.data_dir / "rhythm_sessions.json", list)
 rhythm_preferences_store = JsonStore(settings.data_dir / "rhythm_preferences.json", dict)
+
+# ── Caregiver Alert stores ────────────────────────────────────────────────────
+caregiver_alerts_store = JsonStore(settings.data_dir / "caregiver_alerts.json", dict)
+
