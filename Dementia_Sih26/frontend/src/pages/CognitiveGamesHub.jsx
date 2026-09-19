@@ -80,6 +80,18 @@ const GAMES_META = [
     desc: "Enjoy familiar music, recognize nostalgic songs, tap to the beat, and share memory connections.",
     benefit: "Stimulates auditory recall, motor rhythm engagement, and positive emotional memory.",
   },
+  {
+    id: "voice_village",
+    page: "game-village",
+    titleKey: "voiceVillageTitle",
+    title: "Voice of the Village",
+    domain: "Auditory Memory & Recall",
+    icon: "🌾",
+    color: "#10b981",
+    descKey: "voiceVillageDesc",
+    desc: "Listen to short everyday village stories and recall simple details.",
+    benefit: "Enhances attentive listening, verbal comprehension, and calm recall.",
+  },
 ];
 
 export default function CognitiveGamesHub({ setPage }) {

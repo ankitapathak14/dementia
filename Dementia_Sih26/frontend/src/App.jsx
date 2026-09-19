@@ -40,6 +40,7 @@ import ObjectRecognitionGame from "./components/games/ObjectRecognitionGame";
 import PatternCompletionGame from "./components/games/PatternCompletionGame";
 import DailyRoutineGame from "./components/games/DailyRoutineGame";
 import RhythmRecall from "./components/games/RhythmRecall";
+import VoiceOfVillageGame from "./components/games/VoiceOfVillageGame";
 import NeuroBot from "./components/NeuroBot";
 
 injectStyles();
@@ -133,6 +134,7 @@ export default function App() {
     "game-pattern": <PatternCompletionGame setPage={setPage} />,
     "game-routine": <DailyRoutineGame setPage={setPage} />,
     "game-rhythm-recall": <RhythmRecall setPage={setPage} />,
+    "game-village": <VoiceOfVillageGame setPage={setPage} />,
     "messages": <MessagesPage />,
     "doctors": <DoctorSelection setPage={setPage} />,
   };

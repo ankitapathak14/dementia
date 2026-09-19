@@ -20,6 +20,7 @@ class TestGameScoringEngine(unittest.TestCase):
             "object_recognition",
             "pattern_completion",
             "daily_routine",
+            "voice_village",
         }
         self.assertEqual(set(GAMES_CATALOGUE.keys()), expected_games)
         for game_id, data in GAMES_CATALOGUE.items():
@@ -66,6 +67,18 @@ class TestGameScoringEngine(unittest.TestCase):
         self.assertEqual(score, 40.0)
         self.assertEqual(stars, 1)
 
+    def test_score_calculation_voice_village(self):
+        score, stars, perf, feedback = calculate_game_score(
+            game_id="voice_village",
+            difficulty_level=1,
+            duration_seconds=30.0,
+            moves_count=3,
+            mistakes_count=0,
+            completed=True,
+        )
+        self.assertGreaterEqual(score, 85.0)
+        self.assertEqual(stars, 3)
+
 
 class TestGamesAPI(unittest.TestCase):
     def setUp(self):
@@ -75,16 +88,17 @@ class TestGamesAPI(unittest.TestCase):
         response = self.client.get("/api/games")
         self.assertEqual(response.status_code, 200)
         data = response.json()
-        self.assertEqual(len(data), 5)
+        self.assertEqual(len(data), 6)
         ids = [g["id"] for g in data]
         self.assertIn("memory_match", ids)
         self.assertIn("sequence_recall", ids)
         self.assertIn("object_recognition", ids)
         self.assertIn("pattern_completion", ids)
         self.assertIn("daily_routine", ids)
+        self.assertIn("voice_village", ids)
 
     def test_get_game_config(self):
-        for game_id in ["memory_match", "sequence_recall", "object_recognition", "pattern_completion", "daily_routine"]:
+        for game_id in ["memory_match", "sequence_recall", "object_recognition", "pattern_completion", "daily_routine", "voice_village"]:
             response = self.client.get(f"/api/games/{game_id}/config")
             self.assertEqual(response.status_code, 200)
             config = response.json()
@@ -136,6 +150,27 @@ class TestGamesAPI(unittest.TestCase):
         self.assertIn("total_games_played", stats_data)
         self.assertIn("total_stars_earned", stats_data)
         self.assertIn("domain_scores", stats_data)
+
+    def test_submit_voice_village_session(self):
+        payload = {
+            "game_id": "voice_village",
+            "difficulty_level": 1,
+            "duration_seconds": 22.0,
+            "moves_count": 3,
+            "mistakes_count": 0,
+            "completed": True,
+            "language": "en",
+            "telemetry": {"action_latencies": [2.1, 1.8, 2.5], "replays_count": 1},
+        }
+        response = self.client.post("/api/games/session", json=payload)
+        self.assertEqual(response.status_code, 200)
+        res = response.json()
+        self.assertIn("session_id", res)
+        self.assertEqual(res["game_id"], "voice_village")
+        self.assertEqual(res["cognitive_domain"], "Auditory Memory & Recall")
+        self.assertGreaterEqual(res["score"], 80.0)
+        self.assertIn("adaptive_difficulty", res)
+        self.assertIn("new_level", res["adaptive_difficulty"])
 
 
 if __name__ == "__main__":
