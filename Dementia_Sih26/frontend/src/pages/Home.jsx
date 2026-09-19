@@ -77,7 +77,7 @@ export default function Home({ setView }) {
         <FloatCard style={{ position: "absolute", right: "7%", top: "22%", animation: "floatR 8s ease-in-out infinite 0.5s", minWidth: 130 }}>
           <div style={{ fontSize: 10, color: T.creamFaint, marginBottom: 4 }}>Cognitive Score</div>
           <div style={{ fontFamily: "'Instrument Serif',serif", fontSize: 36, color: T.cream, lineHeight: 1 }}>74</div>
-          <div style={{ fontSize: 10, color: T.green, marginTop: 4 }}>● Low Risk</div>
+          <div style={{ fontSize: 10, color: T.green, marginTop: 4 }}>● Routine Attention</div>
         </FloatCard>
         <FloatCard style={{ position: "absolute", right: "6%", top: "42%", animation: "floatR 6s ease-in-out infinite 2s", minWidth: 150 }}>
           <div style={{ fontSize: 10, color: T.creamFaint, marginBottom: 6 }}>Assessment Complete ✓</div>
@@ -106,7 +106,7 @@ export default function Home({ setView }) {
               <div style={{ textAlign: "center", marginBottom: 14 }}>
                 <div style={{ fontFamily: "'Instrument Serif',serif", fontSize: 56, color: "#111", lineHeight: 1 }}>74</div>
                 <div style={{ fontSize: 11, color: "#888", marginTop: 2 }}>Cognitive Score</div>
-                <div style={{ display: "inline-flex", alignItems: "center", gap: 4, background: "#e8f8ee", borderRadius: 20, padding: "3px 10px", fontSize: 10, fontWeight: 700, color: "#1a7a3a", marginTop: 6 }}>● Low Risk</div>
+                <div style={{ display: "inline-flex", alignItems: "center", gap: 4, background: "#e8f8ee", borderRadius: 20, padding: "3px 10px", fontSize: 10, fontWeight: 700, color: "#1a7a3a", marginTop: 6 }}>● Routine Attention</div>
               </div>
               {[{label:"Speech",v:74,c:"#e84040"},{label:"Memory",v:82,c:"#22c55e"},{label:"Reaction",v:68,c:"#3b82f6"}].map(d => (
                 <div key={d.label} style={{ marginBottom: 8 }}>

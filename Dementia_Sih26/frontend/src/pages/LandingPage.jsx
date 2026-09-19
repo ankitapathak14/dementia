@@ -624,7 +624,7 @@ export default function LandingPage({ setView, onStartSihDemo }) {
               {/* Floating stat cards */}
               <div style={{ display:"flex",flexDirection:"column",gap:12 }}>
                 {[
-                  {label:"Cognitive Score",val:"74",    sub:"Low Risk",color:C.lime,   anim:"float-up 6s ease-in-out infinite"},
+                  {label:"Cognitive Score",val:"74",    sub:"Routine Monitoring",color:C.lime,   anim:"float-up 6s ease-in-out infinite"},
                   {label:"Speech Rate",   val:"142 wpm",sub:"Normal",  color:"#60a5fa",anim:"float-up 8s ease-in-out infinite 1s"},
                   {label:"Reaction Time", val:"284ms",  sub:"On trend",color:"#f59e0b",anim:"float-up 7s ease-in-out infinite 0.5s"},
                 ].map(s=>(
@@ -711,7 +711,7 @@ export default function LandingPage({ setView, onStartSihDemo }) {
                       { icon:"⚡",title:"Reaction Time",     desc:"Attention via response drift, misses & speed across 30 targets.", accent:"#f59e0b" },
                       { icon:"🎨",title:"Stroop Test",       desc:"Color-word interference — gold-standard executive function.",     accent:"#a78bfa" },
                       { icon:"🥁",title:"Motor Tap",         desc:"10-second tapping measures rhythmic motor control.",               accent:"#fb923c" },
-                      { icon:"📊",title:"Risk Dashboard",    desc:"Unified Alzheimer's, Dementia & Parkinson's risk scores.",        accent:"#4ade80" },
+                      { icon:"📊",title:"Cognitive Dashboard", desc:"Unified multi-domain cognitive performance & attention monitoring.", accent:"#4ade80" },
                     ].map(s=><SvcCard key={s.title} {...s} />)}
                   </div>
                 </div>

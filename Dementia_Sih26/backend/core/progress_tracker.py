@@ -106,16 +106,22 @@ def build_progress_summary(historical_results: list[dict]) -> dict:
     else:
         overall = "insufficient_data"
 
-    # Risk trend from stored probabilities
+    # Risk trend from stored probabilities (safely ignore None values)
     risk_fields = ["alzheimers_risk", "dementia_risk", "parkinsons_risk"]
     risk_trends = {}
     for rf in risk_fields:
-        series = [r[rf] for r in historical_results if rf in r]
+        series = [r[rf] for r in historical_results if rf in r and r[rf] is not None]
         if series:
             risk_trends[rf] = {
-                "latest":  round(series[-1], 4),
+                "latest": round(series[-1], 4),
                 "average": round(statistics.mean(series), 4),
-                "trend":   compute_trend([s * 100 for s in series]),
+                "trend": compute_trend([s * 100 for s in series]),
+            }
+        else:
+            risk_trends[rf] = {
+                "latest": None,
+                "average": None,
+                "trend": "no_data",
             }
 
     return {

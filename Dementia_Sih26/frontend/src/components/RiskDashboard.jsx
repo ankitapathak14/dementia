@@ -137,11 +137,13 @@ export function Btn({ children, variant = "primary", onClick, style = {}, small 
 // ── Badge ─────────────────────────────────────────────────────────────────────
 export function Badge({ level }) {
   const m = {
-    Low:      { bg:`rgba(200,241,53,0.12)`,  border:`rgba(200,241,53,0.30)`, color:LIME,        label:"Low Risk"      },
-    Moderate: { bg:"rgba(245,158,11,0.10)",  border:"rgba(245,158,11,0.28)", color:T.amber,     label:"Moderate Risk" },
-    High:     { bg:"rgba(232,64,64,0.12)",   border:"rgba(232,64,64,0.28)",  color:"#ff7070",   label:"High Risk"     },
+    Routine:  { bg:`rgba(200,241,53,0.12)`,  border:`rgba(200,241,53,0.30)`, color:LIME,        label:"Routine Attention" },
+    Moderate: { bg:"rgba(245,158,11,0.10)",  border:"rgba(245,158,11,0.28)", color:T.amber,     label:"Moderate Attention" },
+    Elevated: { bg:"rgba(232,64,64,0.12)",   border:"rgba(232,64,64,0.28)",  color:"#ff7070",   label:"Elevated Attention" },
+    Low:      { bg:`rgba(200,241,53,0.12)`,  border:`rgba(200,241,53,0.30)`, color:LIME,        label:"Routine Attention" },
+    High:     { bg:"rgba(232,64,64,0.12)",   border:"rgba(232,64,64,0.28)",  color:"#ff7070",   label:"Elevated Attention" },
   };
-  const s = m[level] || m.Low;
+  const s = m[level] || m.Routine;
   return (
     <span style={{
       background:s.bg, color:s.color, padding:"4px 12px", borderRadius:20,

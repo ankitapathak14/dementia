@@ -19,4 +19,9 @@ __pycache__/
 
 # Build output
 dist/
+
+# Research datasets (acquire locally via ml/download_dataset.py)
+ml/data/*.csv
+backend/venv/
+.pytest_cache/
 **/dist/

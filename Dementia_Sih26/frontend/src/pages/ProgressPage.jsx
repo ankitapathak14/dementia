@@ -20,7 +20,9 @@ function riskToWellness(compositeRisk) {
 
 // For domain scores (already higher=better), just clamp & round
 function domainScore(val) {
-  return Math.round(Math.max(0, Math.min(100, val ?? 0)));
+  if (val == null) return 0;
+  const num = Number(val);
+  return isNaN(num) ? 0 : Math.round(Math.max(0, Math.min(100, num)));
 }
 
 // Compute overall wellness from a history entry
@@ -30,8 +32,13 @@ function entryOverall(h) {
     return riskToWellness(h.composite_risk_score);
   }
   // Fallback: average of whichever domain scores exist (treat 0 as valid)
-  const vals = [h.speech_score, h.memory_score, h.reaction_score, h.executive_score, h.motor_score]
-    .filter(v => v != null);
+  const vals = [
+    h.speech_score ?? h.speech,
+    h.memory_score ?? h.memory,
+    h.reaction_score ?? h.reaction,
+    h.executive_score ?? h.executive,
+    h.motor_score ?? h.motor,
+  ].filter(v => v != null);
   return vals.length ? Math.round(vals.reduce((a, b) => a + b, 0) / vals.length) : 0;
 }
 
@@ -88,6 +95,7 @@ function DomainTrack({ label, icon, data, labels, color }) {
   const latest = data.length ? data[data.length - 1] : null;
   const tier   = scoreTier(latest ?? 0);
   const avg    = data.length ? Math.round(data.reduce((a, b) => a + b, 0) / data.length) : 0;
+  const scoreVal = latest != null ? Math.max(0, Math.min(100, latest)) : 0;
 
   return (
     <div style={{ background: "#141414", borderRadius: 16, padding: "22px 22px",
@@ -104,7 +112,7 @@ function DomainTrack({ label, icon, data, labels, color }) {
         <TrendBadge data={data} />
       </div>
 
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginBottom: 14 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginBottom: 10 }}>
         <div>
           <div style={{ fontSize: 11, color: "rgba(240,236,227,0.3)", marginBottom: 4 }}>Latest</div>
           <div style={{ fontFamily: "'Instrument Serif',serif", fontSize: 32,
@@ -117,6 +125,12 @@ function DomainTrack({ label, icon, data, labels, color }) {
           <div style={{ fontSize: 20, fontWeight: 700, color: "rgba(240,236,227,0.5)" }}>{data.length ? avg : "—"}</div>
         </div>
       </div>
+
+      {/* Domain progress bar visualization */}
+      <div style={{ height: 6, borderRadius: 3, background: "rgba(255,255,255,0.12)", marginBottom: 14, overflow: "hidden" }}>
+        <div style={{ height: "100%", width: `${scoreVal}%`, minWidth: scoreVal > 0 ? 4 : 0, background: `linear-gradient(90deg, ${color}88, ${color})`, borderRadius: 3, transition: "width 0.8s ease" }} />
+      </div>
+
 
       <Sparkline data={data} color={color} height={55} width={180} />
 
@@ -157,7 +171,14 @@ function HistoryTable({ history }) {
                 ? new Date(rawDate).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
                 : "—";
 
-              const domains = [a.speech_score, a.memory_score, a.reaction_score, a.executive_score, a.motor_score];
+              const domains = [
+                a.speech_score ?? a.speech ?? a.domain_scores?.speech,
+                a.memory_score ?? a.memory ?? a.domain_scores?.memory,
+                a.reaction_score ?? a.reaction ?? a.domain_scores?.reaction,
+                a.executive_score ?? a.executive ?? a.domain_scores?.executive,
+                a.motor_score ?? a.motor ?? a.domain_scores?.motor,
+              ];
+
 
               return (
                 <tr key={i} style={{ borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
@@ -220,11 +241,11 @@ export default function ProgressPage({ setPage }) {
       })
     : [];
 
-  const speechData   = hasData ? history.map(h => domainScore(h.speech_score))    : [];
-  const memoryData   = hasData ? history.map(h => domainScore(h.memory_score))    : [];
-  const reactionData = hasData ? history.map(h => domainScore(h.reaction_score))  : [];
-  const execData     = hasData ? history.map(h => domainScore(h.executive_score)) : [];
-  const motorData    = hasData ? history.map(h => domainScore(h.motor_score))     : [];
+  const speechData   = hasData ? history.map(h => domainScore(h.speech_score ?? h.speech ?? h.domain_scores?.speech))       : [];
+  const memoryData   = hasData ? history.map(h => domainScore(h.memory_score ?? h.memory ?? h.domain_scores?.memory))       : [];
+  const reactionData = hasData ? history.map(h => domainScore(h.reaction_score ?? h.reaction ?? h.domain_scores?.reaction)) : [];
+  const execData     = hasData ? history.map(h => domainScore(h.executive_score ?? h.executive ?? h.domain_scores?.executive)): [];
+  const motorData    = hasData ? history.map(h => domainScore(h.motor_score ?? h.motor ?? h.domain_scores?.motor))         : [];
   const overallData  = hasData ? history.map(entryOverall) : [];
 
   const latestOverall = overallData.length ? overallData[overallData.length - 1] : null;
@@ -318,8 +339,11 @@ export default function ProgressPage({ setPage }) {
                   {latestTier.label}
                 </div>
                 {latestComposite != null && (
-                  <div style={{ fontSize: 11, color: "rgba(240,236,227,0.3)", marginTop: 4 }}>
-                    Composite risk score: {latestComposite}/100 (lower = better)
+                  <div
+                    title="Composite performance index derived from measured cognitive domains. It is a monitoring metric and not a medical diagnosis."
+                    style={{ fontSize: 11, color: "rgba(240,236,227,0.4)", marginTop: 4, cursor: "help" }}
+                  >
+                    Cognitive Performance Index: {latestComposite}/100 ℹ️
                   </div>
                 )}
               </div>

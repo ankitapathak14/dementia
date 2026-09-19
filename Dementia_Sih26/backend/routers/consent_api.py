@@ -97,7 +97,7 @@ def get_patient_consent_status(patient_id: str, authorization: str = Header(...)
     """Clinician / Care team checks patient consent status."""
     care_member = auth_service.require_care_team(authorization)
     # Check enrollment
-    if not auth_service.verify_doctor_patient_relationship(care_member["id"], patient_id):
+    if not auth_service.verify_care_member_patient_access(care_member, patient_id):
         record(
             event="consent.check_denied",
             actor_id=care_member["id"],

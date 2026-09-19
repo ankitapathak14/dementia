@@ -26,102 +26,19 @@ from models.schemas import (
 )
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# DISEASE MODEL WEIGHTS
-# Each row: [wpm, speed_dev, speech_var, pause_ratio, start_delay,
-#            imm_recall, del_recall, intrusions, latency, order_ratio,
-#            mean_rt, std_rt, min_rt, drift, misses,
-#            stroop_err, stroop_rt, tap_std]
-# Positive weight = higher feature value increases disease risk.
-# Weights tuned to match known neurological profiles.
+# CLINICAL BENCHMARK LEVEL MAPPING (Non-diagnostic)
 # ═══════════════════════════════════════════════════════════════════════════════
 
-# Alzheimer's: dominated by memory decline + word-finding difficulties
-ALZ_WEIGHTS = np.array([
-    -0.100,  # wpm (slower speech ↑ risk, mild)
-     0.080,  # speed_deviation
-     0.060,  # speech_variability
-     0.150,  # pause_ratio (high pauses ↑ risk — word finding)
-     0.050,  # speech_start_delay
-    -0.300,  # immediate_recall_accuracy (lower = higher risk — PRIMARY)
-    -0.350,  # delayed_recall_accuracy (strongest Alz marker — PRIMARY)
-     0.200,  # intrusion_count (strong Alz marker)
-     0.150,  # recall_latency
-    -0.200,  # order_match_ratio
-     0.030,  # mean_rt (minor)
-     0.020,  # std_rt
-     0.010,  # min_rt
-     0.030,  # reaction_drift
-     0.050,  # miss_count
-     0.050,  # stroop_error_rate
-     0.020,  # stroop_rt
-     0.020,  # tap_interval_std
-])
-ALZ_BIAS = 0.20
-
-# Dementia (general): attention + processing speed + broad cognitive decline
-DEM_WEIGHTS = np.array([
-    -0.080,  # wpm
-     0.050,  # speed_deviation
-     0.050,  # speech_variability
-     0.080,  # pause_ratio
-     0.060,  # speech_start_delay
-    -0.200,  # immediate_recall_accuracy
-    -0.180,  # delayed_recall_accuracy
-     0.120,  # intrusion_count
-     0.100,  # recall_latency
-    -0.120,  # order_match_ratio
-     0.250,  # mean_rt (STRONG — processing speed)
-     0.200,  # std_rt (STRONG — attention instability)
-     0.100,  # min_rt
-     0.180,  # reaction_drift
-     0.250,  # miss_count (PRIMARY — sustained attention)
-     0.300,  # stroop_error_rate (PRIMARY — executive function)
-     0.150,  # stroop_rt
-     0.080,  # tap_interval_std
-])
-DEM_BIAS = -0.30
-
-# Parkinson's: motor timing + initiation + reaction consistency
-PARK_WEIGHTS = np.array([
-    -0.150,  # wpm (hypophonia, slow speech)
-     0.120,  # speed_deviation
-     0.180,  # speech_variability (monotone/dysrhythmic)
-     0.100,  # pause_ratio
-     0.200,  # speech_start_delay (initiation delay — PRIMARY)
-    -0.050,  # immediate_recall_accuracy (mild)
-    -0.050,  # delayed_recall_accuracy
-     0.050,  # intrusion_count
-     0.080,  # recall_latency
-    -0.050,  # order_match_ratio
-     0.300,  # mean_rt (PRIMARY — bradykinesia)
-     0.250,  # std_rt (PRIMARY — motor inconsistency)
-     0.200,  # min_rt (slow even at best)
-     0.150,  # reaction_drift
-     0.200,  # miss_count
-     0.080,  # stroop_error_rate
-     0.100,  # stroop_rt
-     0.400,  # tap_interval_std (PRIMARY — rhythmic motor control)
-])
-PARK_BIAS = -0.50
-
-
-def _sigmoid(x: float) -> float:
-    return 1.0 / (1.0 + np.exp(-x))
-
-
-def _predict_disease(feature_vec: np.ndarray, weights: np.ndarray, bias: float) -> float:
-    """Logistic regression forward pass."""
-    logit = float(np.dot(weights, feature_vec)) + bias
-    return round(float(_sigmoid(logit)), 3)
-
-
-def _prob_to_level(prob: float) -> str:
+def _prob_to_level(prob: Optional[float]) -> str:
+    if prob is None:
+        return "N/A"
     if prob < 0.35:
         return "Low"
     elif prob < 0.65:
         return "Moderate"
     else:
         return "High"
+
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -226,7 +143,7 @@ def extract_memory_features(memory_results: dict, memory: Optional[MemoryData] =
 
 def extract_reaction_features(reaction_times: list, reaction: Optional[ReactionData] = None) -> tuple[float, dict]:
     times      = reaction.times if reaction else reaction_times
-    miss_count = reaction.miss_count or 0
+    miss_count = (reaction.miss_count or 0) if reaction else 0
     init_delay = (reaction.initiation_delay or max(150.0, min(times) * 0.6)) if reaction and times else None
 
     if not times:
@@ -286,59 +203,33 @@ def extract_motor_features(tap: Optional[TapData] = None) -> tuple[float, dict]:
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# DISEASE RISK COMPUTATION
+# DISEASE RISK INTERFACE (DEPRECATED - RETAINED FOR API BACKWARD COMPATIBILITY)
 # ═══════════════════════════════════════════════════════════════════════════════
 
 def compute_disease_risks(fv: FeatureVector, profile: Optional[UserProfile] = None) -> dict:
     """
-    Build the 18-element feature vector and run three separate logistic models.
-    Raw features are normalised to roughly [0, 1] range before scoring.
+    DEPRECATED: Hardcoded disease-specific heuristic weights have been permanently removed.
+    Clinical reference probability is now estimated through Layer B (OASIS reference model)
+    when clinical parameters are provided.
     """
-    vec = np.array([
-        fv.wpm / 200.0,
-        fv.speed_deviation / 50.0,
-        fv.speech_variability / 30.0,
-        fv.pause_ratio,
-        fv.speech_start_delay / 5.0,
-        fv.immediate_recall_accuracy / 100.0,
-        fv.delayed_recall_accuracy / 100.0,
-        fv.intrusion_count / 10.0,
-        fv.recall_latency / 15.0,
-        fv.order_match_ratio,
-        fv.mean_rt / 800.0,
-        fv.std_rt / 300.0,
-        fv.min_rt / 600.0,
-        fv.reaction_drift / 300.0,
-        fv.miss_count / 10.0,
-        fv.stroop_error_rate,
-        fv.stroop_rt / 1000.0,
-        fv.tap_interval_std / 200.0,
-    ])
-
-    alz_prob  = _predict_disease(vec, ALZ_WEIGHTS,  ALZ_BIAS)
-    dem_prob  = _predict_disease(vec, DEM_WEIGHTS,  DEM_BIAS)
-    park_prob = _predict_disease(vec, PARK_WEIGHTS, PARK_BIAS)
-
-    # Clinical profile adjustment (gentle nudge, not dominant)
-    if profile:
-        alz_adj = dem_adj = park_adj = 0.0
-        if profile.age and profile.age > 65:
-            alz_adj  += 0.04
-            dem_adj  += 0.03
-            park_adj += 0.03
-        if profile.sleep_hours and profile.sleep_hours < 6:
-            dem_adj += 0.03
-        if profile.education_level and profile.education_level >= 4:
-            alz_adj  -= 0.03
-            dem_adj  -= 0.02
-        alz_prob  = float(np.clip(alz_prob  + alz_adj,  0, 1))
-        dem_prob  = float(np.clip(dem_prob  + dem_adj,  0, 1))
-        park_prob = float(np.clip(park_prob + park_adj, 0, 1))
+    clinical_prob = None
+    if profile and profile.age is not None:
+        try:
+            from ml.clinical_model import predict_clinical_reference
+            clin_input = {
+                "Age": profile.age,
+                "EDUC": float(profile.education_level * 4) if profile.education_level else 12.0,
+            }
+            res = predict_clinical_reference(clin_input)
+            if res.get("status") == "available":
+                clinical_prob = res.get("probability")
+        except Exception:
+            clinical_prob = None
 
     return {
-        "alzheimers_risk": alz_prob,
-        "dementia_risk":   dem_prob,
-        "parkinsons_risk": park_prob,
+        "alzheimers_risk": clinical_prob,
+        "dementia_risk": clinical_prob,
+        "parkinsons_risk": None,
     }
 
 
@@ -363,3 +254,110 @@ def build_feature_vector(speech_f, memory_f, reaction_f, executive_f, motor_f) -
         stroop_rt=executive_f.get("stroop_rt", 550),
         tap_interval_std=motor_f.get("tap_interval_std", 40),
     )
+
+
+def compute_feature_provenance(
+    audio_b64: Optional[str] = None,
+    speech: Optional[SpeechData] = None,
+    memory_results: Optional[dict] = None,
+    memory: Optional[MemoryData] = None,
+    reaction_times: Optional[list] = None,
+    reaction: Optional[ReactionData] = None,
+    stroop: Optional[StroopData] = None,
+    tap: Optional[TapData] = None,
+) -> tuple[dict[str, str], dict[str, list[str]], dict[str, int]]:
+    """
+    Classifies each of the 18 behavioral features into one of three provenance categories:
+      - 'measured': directly captured from patient actions/signals during testing
+      - 'derived': calculated deterministically from measured companion parameters
+      - 'defaulted': fallback baseline used when input is unprovided or incomplete
+    """
+    provenance: dict[str, str] = {}
+
+    # Speech (5)
+    if speech and speech.wpm and speech.wpm > 0:
+        provenance["wpm"] = "measured"
+    elif audio_b64:
+        provenance["wpm"] = "derived"
+    else:
+        provenance["wpm"] = "defaulted"
+
+    if speech and speech.speed_deviation is not None:
+        provenance["speed_deviation"] = "measured"
+    elif provenance["wpm"] != "defaulted":
+        provenance["speed_deviation"] = "derived"
+    else:
+        provenance["speed_deviation"] = "defaulted"
+
+    if speech and speech.speech_speed_variability is not None:
+        provenance["speech_variability"] = "measured"
+    elif provenance["speed_deviation"] != "defaulted":
+        provenance["speech_variability"] = "derived"
+    else:
+        provenance["speech_variability"] = "defaulted"
+
+    provenance["pause_ratio"] = "measured" if (speech and speech.pause_ratio is not None) else "defaulted"
+    provenance["speech_start_delay"] = "measured" if (speech and speech.speech_start_delay is not None) else "defaulted"
+
+    # Memory (5)
+    mem_res = memory_results or {}
+    has_imm = (memory and memory.word_recall_accuracy is not None) or ("word_recall_accuracy" in mem_res)
+    has_pattern = (memory and memory.pattern_accuracy is not None) or ("pattern_accuracy" in mem_res)
+
+    provenance["immediate_recall_accuracy"] = "measured" if has_imm else "defaulted"
+    if memory and memory.delayed_recall_accuracy is not None:
+        provenance["delayed_recall_accuracy"] = "measured"
+    elif has_imm or has_pattern:
+        provenance["delayed_recall_accuracy"] = "derived"
+    else:
+        provenance["delayed_recall_accuracy"] = "defaulted"
+
+    provenance["intrusion_count"] = "measured" if (memory and memory.intrusion_count is not None) else "defaulted"
+
+    if memory and memory.recall_latency_seconds is not None:
+        provenance["recall_latency"] = "measured"
+    elif has_imm:
+        provenance["recall_latency"] = "derived"
+    else:
+        provenance["recall_latency"] = "defaulted"
+
+    if memory and memory.order_match_ratio is not None:
+        provenance["order_match_ratio"] = "measured"
+    elif has_pattern:
+        provenance["order_match_ratio"] = "derived"
+    else:
+        provenance["order_match_ratio"] = "defaulted"
+
+    # Reaction (5)
+    rt_list = (reaction.times if reaction and reaction.times else reaction_times) or []
+    has_rt = len(rt_list) > 0
+    provenance["mean_rt"] = "measured" if has_rt else "defaulted"
+    provenance["std_rt"] = "measured" if has_rt else "defaulted"
+    provenance["min_rt"] = "measured" if has_rt else "defaulted"
+    provenance["reaction_drift"] = "measured" if len(rt_list) >= 2 else "defaulted"
+    provenance["miss_count"] = "measured" if (reaction and reaction.miss_count is not None) else "defaulted"
+
+    # Executive (2)
+    has_stroop = stroop is not None and stroop.total_trials > 0
+    provenance["stroop_error_rate"] = "measured" if has_stroop else "defaulted"
+    provenance["stroop_rt"] = (
+        "measured"
+        if (has_stroop and (stroop.incongruent_rt is not None or stroop.mean_rt is not None))
+        else "defaulted"
+    )
+
+    # Motor (1)
+    has_tap = tap is not None and len(tap.intervals) >= 3
+    provenance["tap_interval_std"] = "measured" if has_tap else "defaulted"
+
+    categorized = {
+        "measured": [k for k, v in provenance.items() if v == "measured"],
+        "derived": [k for k, v in provenance.items() if v == "derived"],
+        "defaulted": [k for k, v in provenance.items() if v == "defaulted"],
+    }
+    counts = {
+        "measured_count": len(categorized["measured"]),
+        "derived_count": len(categorized["derived"]),
+        "defaulted_count": len(categorized["defaulted"]),
+    }
+    return provenance, categorized, counts

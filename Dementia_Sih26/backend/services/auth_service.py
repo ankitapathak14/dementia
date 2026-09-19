@@ -24,7 +24,7 @@ from core.security import (
     verify_password,
 )
 from core.settings import settings
-from core.storage import results_store, sessions_store, users_store
+from core.storage import patient_caregivers_store, results_store, sessions_store, users_store
 from services.audit_service import record
 
 EMAIL_RE = re.compile(r"^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$")
@@ -275,7 +275,9 @@ def login_user(payload: Any) -> Dict[str, Any]:
     matched_id = None
     matched_user = None
     for user_id, user in users.items():
-        if user["email"].lower() == email:
+        user_email = user.get("email", "").strip().lower()
+        user_aliases = [a.strip().lower() for a in user.get("aliases", [])]
+        if user_email == email or email in user_aliases:
             matched_id = user_id
             matched_user = user
             break
@@ -368,23 +370,223 @@ def logout_user(authorization: str) -> Dict[str, str]:
     return {"message": "Logged out successfully."}
 
 
-def verify_doctor_patient_relationship(care_member_id: str, patient_id: str) -> bool:
+def get_patient_caregiver_relationships(
+    patient_id: Optional[str] = None,
+    caregiver_id: Optional[str] = None,
+    active_only: bool = True,
+) -> List[Dict[str, Any]]:
+    """Retrieve patient-caregiver relationships with optional filtering."""
+    records = patient_caregivers_store.read()
+    if not isinstance(records, list):
+        records = []
+    filtered = []
+    for r in records:
+        if patient_id and r.get("patient_id") != patient_id:
+            continue
+        if caregiver_id and r.get("caregiver_id") != caregiver_id:
+            continue
+        if active_only and (r.get("status") != "connected" or not r.get("access_granted", True)):
+            continue
+        filtered.append(r)
+    return filtered
+
+
+def verify_patient_caregiver_relationship(caregiver_id: str, patient_id: str) -> bool:
     """
-    Confirm whether care member (doctor or caregiver) has an authorized,
+    Confirm whether caregiver has an explicit, active, and authorized
+    care relationship with patient_id.
+    """
+    users = get_users()
+    caregiver = users.get(caregiver_id)
+    if not caregiver or caregiver.get("role") != "caregiver":
+        return False
+    rels = get_patient_caregiver_relationships(patient_id=patient_id, caregiver_id=caregiver_id, active_only=True)
+    return len(rels) > 0
+
+
+def verify_doctor_patient_relationship(doctor_id: str, patient_id: str) -> bool:
+    """
+    Confirm whether clinician (doctor) has an authorized,
     enrolled care relationship with patient_id.
     """
     users = get_users()
-    care_member = users.get(care_member_id)
+    care_member = users.get(doctor_id)
     if not care_member:
         return False
     if care_member.get("role") == "admin":
         return True
+    if care_member.get("role") != "doctor":
+        return False
     if patient_id in care_member.get("patient_list", []):
         return True
     patient = users.get(patient_id)
-    if patient and patient.get("assigned_doctor_id") == care_member_id:
+    if patient and patient.get("assigned_doctor_id") == doctor_id:
         return True
     return False
+
+
+def verify_care_member_patient_access(care_member: Dict[str, Any], patient_id: str) -> bool:
+    """
+    Role-aware care member access dispatcher.
+    Enforces that doctor and caregiver authorizations remain strictly independent.
+    A caregiver never gains access merely by sharing a doctor, and vice-versa.
+    """
+    role = care_member.get("role")
+    member_id = care_member.get("id")
+    if role == "admin":
+        return True
+    if role == "doctor":
+        return verify_doctor_patient_relationship(member_id, patient_id)
+    if role == "caregiver":
+        return verify_patient_caregiver_relationship(member_id, patient_id)
+    return False
+
+
+def assign_caregiver_to_patient(patient_id: str, caregiver_identity: str) -> Dict[str, Any]:
+    """
+    Patient adds/invites a caregiver using caregiver email or user ID.
+    Validates caregiver identity and establishes an explicit connected relationship.
+    """
+    users = get_users()
+    patient = users.get(patient_id)
+    if not patient or patient.get("role") != "patient":
+        raise HTTPException(status_code=403, detail="Only patients can manage caregiver assignments.")
+
+    # Locate caregiver by ID or email
+    caregiver = None
+    target_id = None
+    identity_clean = caregiver_identity.strip().lower()
+
+    if identity_clean in users:
+        caregiver = users[identity_clean]
+        target_id = identity_clean
+    else:
+        for uid, udata in users.items():
+            u_email = udata.get("email", "").strip().lower()
+            u_aliases = [a.strip().lower() for a in udata.get("aliases", [])]
+            if u_email == identity_clean or identity_clean in u_aliases:
+                caregiver = udata
+                target_id = uid
+                break
+
+    if not caregiver:
+        raise HTTPException(
+            status_code=404,
+            detail="Caregiver account not found. Please ensure your caregiver has registered an account with this email.",
+        )
+
+    if caregiver.get("role") != "caregiver":
+        raise HTTPException(
+            status_code=400,
+            detail=f"This account is registered as a {caregiver.get('role')}. Caregivers must register with role 'caregiver'.",
+        )
+
+    if target_id == patient_id:
+        raise HTTPException(status_code=400, detail="Cannot assign yourself as your own caregiver.")
+
+    records = patient_caregivers_store.read()
+    if not isinstance(records, list):
+        records = []
+
+    now = utcnow_iso()
+    existing_idx = None
+    for idx, r in enumerate(records):
+        if r.get("patient_id") == patient_id and r.get("caregiver_id") == target_id:
+            existing_idx = idx
+            break
+
+    if existing_idx is not None:
+        records[existing_idx]["status"] = "connected"
+        records[existing_idx]["access_granted"] = True
+        records[existing_idx]["updated_at"] = now
+        relationship = records[existing_idx]
+    else:
+        relationship = {
+            "id": f"rel-{uuid.uuid4()}",
+            "patient_id": patient_id,
+            "patient_name": patient.get("full_name"),
+            "caregiver_id": target_id,
+            "caregiver_name": caregiver.get("full_name"),
+            "caregiver_email": caregiver.get("email"),
+            "status": "connected",
+            "access_granted": True,
+            "created_at": now,
+            "updated_at": now,
+        }
+        records.append(relationship)
+
+    patient_caregivers_store.write(records)
+    record(
+        event="care_team.caregiver_assigned",
+        actor_id=patient_id,
+        actor_role="patient",
+        subject_id=target_id,
+        outcome="success",
+        metadata={"caregiver_email": caregiver.get("email")},
+    )
+    return relationship
+
+
+def revoke_caregiver_from_patient(patient_id: str, caregiver_id: str) -> Dict[str, Any]:
+    """
+    Patient revokes access for an assigned caregiver.
+    """
+    records = patient_caregivers_store.read()
+    if not isinstance(records, list):
+        records = []
+
+    now = utcnow_iso()
+    found = False
+    for r in records:
+        if r.get("patient_id") == patient_id and r.get("caregiver_id") == caregiver_id and r.get("status") != "revoked":
+            r["status"] = "revoked"
+            r["access_granted"] = False
+            r["updated_at"] = now
+            found = True
+
+    if not found:
+        raise HTTPException(status_code=404, detail="No active caregiver relationship found for this user.")
+
+    patient_caregivers_store.write(records)
+    record(
+        event="care_team.caregiver_revoked",
+        actor_id=patient_id,
+        actor_role="patient",
+        subject_id=caregiver_id,
+        outcome="success",
+    )
+    return {"message": "Caregiver access revoked successfully."}
+
+
+def list_patients_for_caregiver(caregiver_id: str) -> List[Dict[str, Any]]:
+    """
+    Return list of patients authorized for this caregiver.
+    Strictly filters by active patient_caregiver relationships and patient consent.
+    """
+    rels = get_patient_caregiver_relationships(caregiver_id=caregiver_id, active_only=True)
+    authorized_patient_ids = {r["patient_id"] for r in rels}
+
+    users = get_users()
+    all_results = results_store.read()
+    from routers.consent_api import check_patient_consent
+
+    patients = []
+    for pid in authorized_patient_ids:
+        user = users.get(pid)
+        if not user or user.get("role") != "patient":
+            continue
+        # Verify patient consent for care team sharing
+        if not check_patient_consent(pid, "share_with_care_team"):
+            continue
+
+        patient = safe_user(user, include_private=False)
+        history = all_results.get(pid, [])
+        patient["sessionCount"] = len(history)
+        patient["lastResult"] = history[-1] if history else None
+        patients.append(patient)
+
+    patients.sort(key=lambda item: item.get("last_login", ""), reverse=True)
+    return patients
 
 
 def update_basic_profile(user_id: str, updates: Dict[str, Any]) -> Dict[str, Any]:

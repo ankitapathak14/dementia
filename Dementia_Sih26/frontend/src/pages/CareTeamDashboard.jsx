@@ -189,37 +189,111 @@ export default function CareTeamDashboard({ doctor = false }) {
       )}
 
       {/* Patient Selection Bar */}
-      <Card title="Assigned Patients" icon="👤" badge={{ text: `${patients.length} Patient Enrolled`, style: { background: "rgba(255,255,255,0.08)", color: "#e2e8f0" } }}>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 12 }}>
-          {patients.map(p => {
-            const isSelected = detail?.patient_id === p.id;
-            return (
-              <button
-                key={p.id}
-                onClick={() => select(p)}
-                style={{
-                  textAlign: "left",
-                  padding: "16px 18px",
-                  borderRadius: 14,
-                  border: isSelected ? "1px solid #c8f135" : "1px solid rgba(255,255,255,0.08)",
-                  background: isSelected ? "rgba(200,241,53,0.08)" : "rgba(13,17,12,0.7)",
-                  color: "#fff",
-                  cursor: "pointer",
-                  transition: "all 0.2s ease",
-                  boxShadow: isSelected ? "0 0 20px rgba(200,241,53,0.15)" : "none",
-                }}
-              >
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
-                  <strong style={{ fontSize: 15, color: isSelected ? "#c8f135" : "#f8fafc" }}>{p.name}</strong>
-                  <span style={{ fontSize: 11, color: "#94a3b8" }}>{p.sessions} sessions</span>
+      <Card
+        title="Assigned Patients"
+        icon="👤"
+        badge={{
+          text: `${patients.length} Patient${patients.length !== 1 ? "s" : ""} Enrolled`,
+          style: {
+            background: patients.length > 0 ? "rgba(200,241,53,0.14)" : "rgba(255,255,255,0.08)",
+            color: patients.length > 0 ? "#c8f135" : "#e2e8f0",
+            border: `1px solid ${patients.length > 0 ? "rgba(200,241,53,0.3)" : "rgba(255,255,255,0.1)"}`,
+          },
+        }}
+      >
+        {patients.length === 0 ? (
+          <div style={{ textAlign: "center", padding: "40px 20px", color: "#94a3b8", background: "rgba(255,255,255,0.02)", borderRadius: 14, border: "1px solid rgba(255,255,255,0.05)" }}>
+            <div style={{ fontSize: 32, marginBottom: 8 }}>👥</div>
+            <div style={{ fontSize: 16, fontWeight: 700, color: "#e2e8f0", marginBottom: 6 }}>0 Patients Enrolled</div>
+            <div style={{ fontSize: 13, color: "#94a3b8", maxWidth: 440, margin: "0 auto", lineHeight: 1.6 }}>
+              No patients are currently linked to this caregiver account. When a patient assigns your caregiver identity from their portal, their non-diagnostic longitudinal monitoring overview will appear here.
+            </div>
+          </div>
+        ) : (
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 14 }}>
+            {patients.map(p => {
+              const isSelected = detail?.patient_id === p.id;
+              const prio = p.attention_priority || "Routine Attention";
+              const isElevated = prio.includes("Elevated");
+              const isModerate = prio.includes("Moderate");
+              const isPending = prio.includes("Pending");
+              const badgeColor = isElevated ? "#ef4444" : isModerate ? "#f59e0b" : isPending ? "#94a3b8" : "#22c55e";
+
+              return (
+                <div
+                  key={p.id}
+                  onClick={() => select(p)}
+                  style={{
+                    textAlign: "left",
+                    padding: "18px 20px",
+                    borderRadius: 16,
+                    border: isSelected ? "1px solid #c8f135" : "1px solid rgba(255,255,255,0.08)",
+                    background: isSelected ? "rgba(200,241,53,0.08)" : "rgba(13,17,12,0.7)",
+                    color: "#fff",
+                    cursor: "pointer",
+                    transition: "all 0.2s ease",
+                    boxShadow: isSelected ? "0 0 24px rgba(200,241,53,0.15)" : "none",
+                    display: "flex",
+                    flexDirection: "column",
+                    justifyContent: "space-between",
+                  }}
+                >
+                  <div>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
+                      <div>
+                        <strong style={{ fontSize: 16, color: isSelected ? "#c8f135" : "#f8fafc", display: "block" }}>
+                          {p.name}
+                        </strong>
+                        <span style={{ fontSize: 11, color: "#94a3b8" }}>
+                          {p.sessions} session{p.sessions !== 1 ? "s" : ""} completed
+                        </span>
+                      </div>
+                      <span
+                        style={{
+                          fontSize: 10.5,
+                          fontWeight: 800,
+                          textTransform: "uppercase",
+                          padding: "3px 8px",
+                          borderRadius: 6,
+                          background: `${badgeColor}18`,
+                          color: badgeColor,
+                          border: `1px solid ${badgeColor}33`,
+                        }}
+                      >
+                        {prio}
+                      </span>
+                    </div>
+
+                    <div style={{ fontSize: 12, color: isElevated ? "#fca5a5" : "#cbd5e1", display: "flex", alignItems: "center", gap: 6, margin: "6px 0 10px" }}>
+                      <span>{isElevated ? "⚠️" : "📊"}</span> {p.screening_signal || "Non-diagnostic cognitive observation"}
+                    </div>
+                  </div>
+
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingTop: 10, borderTop: "1px solid rgba(255,255,255,0.06)" }}>
+                    <span style={{ fontSize: 11, color: "#94a3b8" }}>
+                      {p.last_assessment ? `Last: ${new Date(p.last_assessment).toLocaleDateString("en-US", { month: "short", day: "numeric" })}` : "Baseline pending"}
+                    </span>
+                    <button
+                      type="button"
+                      style={{
+                        background: isSelected ? "rgba(200,241,53,0.18)" : "rgba(255,255,255,0.05)",
+                        border: isSelected ? "1px solid rgba(200,241,53,0.35)" : "1px solid rgba(255,255,255,0.1)",
+                        color: isSelected ? "#c8f135" : "#e2e8f0",
+                        padding: "5px 12px",
+                        borderRadius: 8,
+                        fontSize: 11.5,
+                        fontWeight: 700,
+                        cursor: "pointer",
+                      }}
+                    >
+                      View Progress →
+                    </button>
+                  </div>
                 </div>
-                <div style={{ fontSize: 12, color: "#fca5a5", display: "flex", alignItems: "center", gap: 6 }}>
-                  <span>⚠️</span> {p.screening_signal}
-                </div>
-              </button>
-            );
-          })}
-        </div>
+              );
+            })}
+          </div>
+        )}
       </Card>
 
       {detail && (
