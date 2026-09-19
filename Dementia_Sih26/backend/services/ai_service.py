@@ -143,7 +143,7 @@ def extract_memory_features(memory_results: dict, memory: Optional[MemoryData] =
 
 def extract_reaction_features(reaction_times: list, reaction: Optional[ReactionData] = None) -> tuple[float, dict]:
     times      = reaction.times if reaction else reaction_times
-    miss_count = reaction.miss_count or 0
+    miss_count = (reaction.miss_count or 0) if reaction else 0
     init_delay = (reaction.initiation_delay or max(150.0, min(times) * 0.6)) if reaction and times else None
 
     if not times:

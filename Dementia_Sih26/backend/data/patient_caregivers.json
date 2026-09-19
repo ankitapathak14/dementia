@@ -8,8 +8,8 @@
     "caregiver_email": "sreejeta.sen@sihdemo.local",
     "status": "connected",
     "access_granted": true,
-    "created_at": "2026-09-18T19:42:10+00:00",
-    "updated_at": "2026-09-18T19:42:10+00:00"
+    "created_at": "2026-09-19T01:14:06+00:00",
+    "updated_at": "2026-09-19T01:14:06+00:00"
   },
   {
     "id": "rel-demo-cg-sih-demo-patient-a",
@@ -20,8 +20,8 @@
     "caregiver_email": "sreejeta.sen@sihdemo.local",
     "status": "connected",
     "access_granted": true,
-    "created_at": "2026-09-18T19:42:10+00:00",
-    "updated_at": "2026-09-18T19:42:10+00:00"
+    "created_at": "2026-09-19T01:14:06+00:00",
+    "updated_at": "2026-09-19T01:14:06+00:00"
   },
   {
     "id": "rel-demo-cg-sih-demo-patient-b",
@@ -32,8 +32,8 @@
     "caregiver_email": "sreejeta.sen@sihdemo.local",
     "status": "connected",
     "access_granted": true,
-    "created_at": "2026-09-18T19:42:10+00:00",
-    "updated_at": "2026-09-18T19:42:10+00:00"
+    "created_at": "2026-09-19T01:14:06+00:00",
+    "updated_at": "2026-09-19T01:14:06+00:00"
   },
   {
     "id": "rel-demo-cg-sih-demo-patient-d",
@@ -44,7 +44,19 @@
     "caregiver_email": "sreejeta.sen@sihdemo.local",
     "status": "connected",
     "access_granted": true,
-    "created_at": "2026-09-18T19:42:10+00:00",
-    "updated_at": "2026-09-18T19:42:10+00:00"
+    "created_at": "2026-09-19T01:14:06+00:00",
+    "updated_at": "2026-09-19T01:14:06+00:00"
+  },
+  {
+    "id": "rel-175240ca-4834-496d-8e8f-2663e086bcb9",
+    "patient_id": "62016f45-d650-4f1e-b21a-065d81d92127",
+    "patient_name": "ADITI NANDI",
+    "caregiver_id": "dc4424ac-c51f-49a4-ae85-76d136c4dd07",
+    "caregiver_name": "sreejeta",
+    "caregiver_email": "sreejeta@gmail.com",
+    "status": "connected",
+    "access_granted": true,
+    "created_at": "2026-09-19T01:23:41+00:00",
+    "updated_at": "2026-09-19T01:23:41+00:00"
   }
 ]

@@ -9,8 +9,10 @@ never a clinical diagnosis.
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
-from typing import Any, Dict, List
-from fastapi import APIRouter
+from typing import Any, Dict, List, Optional
+from fastapi import APIRouter, Header
+from services import auth_service
+
 
 from core.security import hash_password, hash_token
 from core.storage import (
@@ -40,7 +42,7 @@ DEMO_CAREGIVER_TOKEN = "sih_demo_caregiver_token_deterministic_2026"
 
 
 @router.post("/reset-and-seed")
-def reset_and_seed_demo() -> Dict[str, Any]:
+def reset_and_seed_demo(authorization: Optional[str] = Header(default=None)) -> Dict[str, Any]:
     """
     Seed deterministic synthetic demo data for SIH judges.
     Idempotent and resets state to a clean baseline.
@@ -402,8 +404,20 @@ def reset_and_seed_demo() -> Dict[str, Any]:
     ]
 
     all_res = results_store.read()
-    all_res[DEMO_PATIENT_ID] = synthetic_results
+    all_res[DEMO_PATIENT_ID] = list(synthetic_results)
+    if authorization:
+        try:
+            tok = auth_service.extract_bearer_token(authorization)
+            caller = auth_service.get_user_from_token(tok)
+            if caller and caller.get("role") == "patient":
+                all_res[caller["id"]] = list(synthetic_results)
+        except Exception:
+            pass
+    for u in users.values():
+        if u.get("role") == "patient" and u.get("email") in ("aditi22@gmail.com", "aditi@gmail.com"):
+            all_res[u["id"]] = list(synthetic_results)
     results_store.write(all_res)
+
 
     # 7. Synthetic Cognitive Game Sessions for SIH PS 26003
     # Memory Match: 3 baseline sessions (avg 81.7%) vs 3 recent sessions (51%, 48%, 46% -> avg 48.3%, drop -33.4%)

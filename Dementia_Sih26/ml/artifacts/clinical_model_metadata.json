@@ -1,7 +1,7 @@
 {
   "dataset_name": "OASIS Longitudinal MRI Data in Nondemented and Demented Older Adults",
   "source": "Marcus et al. (2010), oasis-brains.org",
-  "training_timestamp": "2026-09-18T19:41:40.087526+00:00",
+  "training_timestamp": "2026-09-19T01:12:58.914481+00:00",
   "training_sample_count": 373,
   "subject_count": 150,
   "target_definition": "Binary clinical dementia status at visit: Nondemented = 0, Demented = 1. Converted visits are labeled using visit-level CDR: CDR >= 0.5 -> 1, CDR == 0 -> 0. CDR is used only for target construction and never as X (target leakage prevention).",

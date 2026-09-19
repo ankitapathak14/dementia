@@ -3,7 +3,7 @@
     "id": "sih-demo-patient-001",
     "full_name": "Biren Das (Demo Patient)",
     "email": "biren.das@sihdemo.local",
-    "password_hash": "pbkdf2_sha256$390000$5d3265b8c99fb6e93f961337d3ec9ba0$f5729d41aabbececeb468d5e302c59e5349e8d3875e52b558ec82513b2240e88",
+    "password_hash": "pbkdf2_sha256$390000$46af538ed9a7d7940740c5b507007666$f64bba12770cdde330a14e97ef54b632f72bc7ec3f83baad755597fa72c01f9a",
     "role": "patient",
     "age": 68,
     "gender": "Male",
@@ -12,8 +12,8 @@
     "education": "Graduate",
     "occupation": "Retired High School Teacher (Assam)",
     "location": "Guwahati, Assam",
-    "created_at": "2026-09-18T19:41:19+00:00",
-    "last_login": "2026-09-18T19:41:19+00:00"
+    "created_at": "2026-09-19T01:14:04+00:00",
+    "last_login": "2026-09-19T01:14:04+00:00"
   },
   "sih-demo-doctor-001": {
     "id": "sih-demo-doctor-001",
@@ -23,7 +23,7 @@
       "tanisha@gmail.com",
       "dr.hazarika@sihdemo.local"
     ],
-    "password_hash": "pbkdf2_sha256$390000$8993ca68cdab9b4759e5ea50a54bbade$b4aac9eb5aa578d9d8cc410519b976d4a36ea2beb88025cb633de786dbfebc5c",
+    "password_hash": "pbkdf2_sha256$390000$c6f78595fa3057b7b52a6fd05b21ceb2$08172a3c5a6290c6768a5055cce0f7c20f16751a902ef20de3b7a6e61ee27a0c",
     "role": "doctor",
     "specialization": "Cognitive Neurologist",
     "hospital": "Apollo Hospitals",
@@ -35,16 +35,16 @@
     "current_patients": 7,
     "patient_list": [
       "sih-demo-patient-b",
-      "sih-demo-patient-d",
-      "sih-demo-patient-a",
+      "sih-demo-patient-e",
       "sih-demo-patient-c",
-      "sih-demo-patient-002",
+      "sih-demo-patient-a",
+      "sih-demo-patient-d",
       "sih-demo-patient-001",
-      "sih-demo-patient-e"
+      "sih-demo-patient-002"
     ],
     "pending_requests": [],
-    "created_at": "2026-09-18T19:41:19+00:00",
-    "last_login": "2026-09-18T19:42:10+00:00"
+    "created_at": "2026-09-19T01:14:04+00:00",
+    "last_login": "2026-09-19T01:14:06+00:00"
   },
   "sih-demo-caregiver-001": {
     "id": "sih-demo-caregiver-001",
@@ -55,7 +55,7 @@
       "sreejeta@demo.com",
       "ananya.das@sihdemo.local"
     ],
-    "password_hash": "pbkdf2_sha256$390000$f79685611d0ba7e32b3ea6790a3f2c49$6f6b6d7d58d4f8f8d239fa123116939cc4dc4dfc9a920603bb68ec0c4570bb7f",
+    "password_hash": "pbkdf2_sha256$390000$1f4d07f4e536a1c14fef6a37de956c17$c714c8b904a23a7f5bd7c4b62c654e7830ece54d43c34fa5f5ed63411a26ceff",
     "role": "caregiver",
     "specialization": "Family Caregiver",
     "hospital": "Home Care Network",
@@ -63,8 +63,8 @@
     "patient_list": [
       "sih-demo-patient-001"
     ],
-    "created_at": "2026-09-18T19:41:19+00:00",
-    "last_login": "2026-09-18T19:42:10+00:00"
+    "created_at": "2026-09-19T01:14:04+00:00",
+    "last_login": "2026-09-19T01:14:06+00:00"
   },
   "62016f45-d650-4f1e-b21a-065d81d92127": {
     "id": "62016f45-d650-4f1e-b21a-065d81d92127",
@@ -77,7 +77,8 @@
     "phone": null,
     "license_number": null,
     "created_at": "2026-09-09T20:55:39+00:00",
-    "last_login": "2026-09-18T15:37:14+00:00"
+    "last_login": "2026-09-19T01:15:29+00:00",
+    "assigned_doctor_id": "a60cacf2-2f0a-4ad8-a882-3b6f565c2c99"
   },
   "c3170c78-039d-47a7-8ce1-42a3572f0870": {
     "id": "c3170c78-039d-47a7-8ce1-42a3572f0870",
@@ -96,7 +97,7 @@
     "id": "sih-demo-patient-002",
     "full_name": "Pradip Borah (Demo Inactive)",
     "email": "pradip.borah@sihdemo.local",
-    "password_hash": "pbkdf2_sha256$390000$628416d2c35cfc23a0e795d358594b5f$4899ddaf9c2b4c60d061e5b285ae99f1eac59aebed6aae058d33ed9a684167bd",
+    "password_hash": "pbkdf2_sha256$390000$d980bfebc5b1e409f40cf5f123620cf0$5dfc8a96a3eee64d552ac6410e02463113b2d970fa79f65bded8dbf667215a4a",
     "role": "patient",
     "age": 72,
     "gender": "Male",
@@ -105,8 +106,8 @@
     "education": "High School",
     "occupation": "Retired Postmaster (Tezpur, Assam)",
     "location": "Tezpur, Assam",
-    "created_at": "2026-09-18T19:41:19+00:00",
-    "last_login": "2026-09-18T19:41:19+00:00"
+    "created_at": "2026-09-19T01:14:04+00:00",
+    "last_login": "2026-09-19T01:14:04+00:00"
   },
   "test_rhythm_user": {
     "id": "test_rhythm_user",
@@ -142,11 +143,11 @@
     "current_patients": 6,
     "patient_list": [
       "sih-demo-patient-b",
-      "sih-demo-patient-d",
-      "sih-demo-patient-a",
+      "sih-demo-patient-e",
       "sih-demo-patient-c",
-      "sih-demo-patient-001",
-      "sih-demo-patient-e"
+      "sih-demo-patient-a",
+      "sih-demo-patient-d",
+      "sih-demo-patient-001"
     ],
     "pending_requests": []
   },
@@ -154,7 +155,7 @@
     "id": "sih-demo-patient-a",
     "full_name": "Arun Sharma (Patient A - Stable)",
     "email": "arun.sharma@sihdemo.local",
-    "password_hash": "pbkdf2_sha256$390000$218d915542bc24985c76b24201aafe54$145da2a2dd6de0c18355af61b9c829586a20c233151e54beb85c4a9015216323",
+    "password_hash": "pbkdf2_sha256$390000$2761a1f6a4e0e3ffb303c72ed2c79ff4$9bd20c0bcd94fd00b7064d5ed464f582e7752bd02bf08e34d20d840922e8d418",
     "role": "patient",
     "age": 72,
     "gender": "Male",
@@ -163,14 +164,14 @@
     "education": "Graduate",
     "occupation": "Retired Accountant",
     "location": "Guwahati, Assam",
-    "created_at": "2026-08-14T19:42:10.981281+00:00",
-    "last_login": "2026-09-18T19:42:10+00:00"
+    "created_at": "2026-08-15T01:14:06.003834+00:00",
+    "last_login": "2026-09-19T01:14:06+00:00"
   },
   "sih-demo-patient-b": {
     "id": "sih-demo-patient-b",
     "full_name": "Bhavna Baruah (Patient B - Memory Change)",
     "email": "bhavna.baruah@sihdemo.local",
-    "password_hash": "pbkdf2_sha256$390000$8415dc097707ef787861ddfafa71b2b4$8c248ad29df8368df0aa5249f8558a5dd2e04759c346bf233e414968240cf036",
+    "password_hash": "pbkdf2_sha256$390000$7e11b33eedc48587ac190e2479f8f378$5d4aede25e5e018db53ad7cf09486a78406aa556beaf35281ce4d2290868bd52",
     "role": "patient",
     "age": 70,
     "gender": "Female",
@@ -179,14 +180,14 @@
     "education": "High School",
     "occupation": "Retired Librarian",
     "location": "Jorhat, Assam",
-    "created_at": "2026-08-14T19:42:10.981281+00:00",
-    "last_login": "2026-09-18T19:42:10+00:00"
+    "created_at": "2026-08-15T01:14:06.003834+00:00",
+    "last_login": "2026-09-19T01:14:06+00:00"
   },
   "sih-demo-patient-c": {
     "id": "sih-demo-patient-c",
     "full_name": "Chandra Kalita (Patient C - Reaction Change)",
     "email": "chandra.kalita@sihdemo.local",
-    "password_hash": "pbkdf2_sha256$390000$41bc662f19f86c6c1e952460ec28db0a$362ea935d26897f62e94dcdb0c1cba32be5022a478da64de3179fbaf2c9da20b",
+    "password_hash": "pbkdf2_sha256$390000$851c67afbfdfaf70ba541dd94c9f70c9$7af8124359c019343ca9da7ef8a19af262d19eea642aa2d13aef4dc1376a1852",
     "role": "patient",
     "age": 71,
     "gender": "Male",
@@ -195,14 +196,14 @@
     "education": "Graduate",
     "occupation": "Retired High School Principal",
     "location": "Dibrugarh, Assam",
-    "created_at": "2026-08-14T19:42:10.981281+00:00",
-    "last_login": "2026-09-18T19:42:10+00:00"
+    "created_at": "2026-08-15T01:14:06.003834+00:00",
+    "last_login": "2026-09-19T01:14:06+00:00"
   },
   "sih-demo-patient-d": {
     "id": "sih-demo-patient-d",
     "full_name": "Deepali Saikia (Patient D - Multi-Domain)",
     "email": "deepali.saikia@sihdemo.local",
-    "password_hash": "pbkdf2_sha256$390000$51b1005d21283fb30f04f2340b915d6b$06a517b9995a4d89dec36ad95b557ed9d971bfb5cdf5d5cd91709d35d859b323",
+    "password_hash": "pbkdf2_sha256$390000$943fe141f20115029c6633da903f1f34$88f2bcc618f7e1128993fac332531124a892d143fa618bfe15e93a54ddc960f3",
     "role": "patient",
     "age": 73,
     "gender": "Female",
@@ -211,14 +212,14 @@
     "education": "Graduate",
     "occupation": "Retired Professor",
     "location": "Silchar, Assam",
-    "created_at": "2026-08-14T19:42:10.981281+00:00",
-    "last_login": "2026-09-18T19:42:10+00:00"
+    "created_at": "2026-08-15T01:14:06.003834+00:00",
+    "last_login": "2026-09-19T01:14:06+00:00"
   },
   "sih-demo-patient-e": {
     "id": "sih-demo-patient-e",
     "full_name": "Emon Hazarika (Patient E - Insufficient History)",
     "email": "emon.hazarika@sihdemo.local",
-    "password_hash": "pbkdf2_sha256$390000$c3b14a3d1ba3c830e4a7da0ed7be52d7$296b5dd8ff2e232309bd88b83f7d3b4461784292f8a9621431f2fed7ca00e2c8",
+    "password_hash": "pbkdf2_sha256$390000$7bb9dff24a8937360438f73f01225eb3$572e183089cd258594ee0ae411b9f17be595848e706c0446d4436e47017935c3",
     "role": "patient",
     "age": 69,
     "gender": "Male",
@@ -227,8 +228,8 @@
     "education": "High School",
     "occupation": "Retired Clerk",
     "location": "Tezpur, Assam",
-    "created_at": "2026-08-14T19:42:10.981281+00:00",
-    "last_login": "2026-09-18T19:42:10+00:00"
+    "created_at": "2026-08-15T01:14:06.003834+00:00",
+    "last_login": "2026-09-19T01:14:06+00:00"
   },
   "dc4424ac-c51f-49a4-ae85-76d136c4dd07": {
     "id": "dc4424ac-c51f-49a4-ae85-76d136c4dd07",
@@ -241,7 +242,7 @@
     "phone": null,
     "license_number": null,
     "created_at": "2026-09-18T19:10:38+00:00",
-    "last_login": "2026-09-18T19:10:38+00:00",
+    "last_login": "2026-09-19T01:25:09+00:00",
     "specialization": "Caregiver",
     "hospital": null,
     "location": null,
@@ -257,7 +258,7 @@
     "id": "test_wf_patient_001",
     "full_name": "Test Patient One",
     "email": "patient1@testwf.local",
-    "password_hash": "pbkdf2_sha256$390000$387a89258bd9d6838e12f06e87d22def$3d025f6c652ed12b835ec9faaf181958599b7e0210e775a1227cc4844fbc3ffd",
+    "password_hash": "pbkdf2_sha256$390000$67fa90c52938ec412af9a7edbd007303$f342b2e8d2c315e454f19bbffe697d51ebb12318addab26a468f87d2e4cd3411",
     "role": "patient",
     "age": 70,
     "gender": "Female",
@@ -270,7 +271,7 @@
     "id": "test_wf_patient_002",
     "full_name": "Test Patient Two",
     "email": "patient2@testwf.local",
-    "password_hash": "pbkdf2_sha256$390000$a02f5d64fd4828e512673acde6abb244$107209f4e482f11d589f15b080464444039eb8750fbd41b307921d5c21a5b3d1",
+    "password_hash": "pbkdf2_sha256$390000$9047702116b880bc47312852e9e58161$8c914049091fb2f517cded750ef0fdf464185d43f8c510a1639eab116e0743da",
     "role": "patient",
     "age": 72,
     "gender": "Male",
@@ -283,7 +284,7 @@
     "id": "test_wf_caregiver_001",
     "full_name": "Test Caregiver One",
     "email": "caregiver1@testwf.local",
-    "password_hash": "pbkdf2_sha256$390000$619d0080fe63903ac80ff31752cd191a$20fb4a604ff285d2b392fe263cabf94928bb415af0e39a9256393ee71c8f000d",
+    "password_hash": "pbkdf2_sha256$390000$b40ac6025ee5bc2bd7e22666d75dfb07$9c5313d71b2694c539f33d972cea019328eb5584b81776ee75c980f3c28cf271",
     "role": "caregiver",
     "specialization": "Caregiver",
     "patient_list": []
@@ -292,7 +293,7 @@
     "id": "test_wf_caregiver_002",
     "full_name": "Test Caregiver Two",
     "email": "caregiver2@testwf.local",
-    "password_hash": "pbkdf2_sha256$390000$2eefff870f163ca5d982a8758264c1fe$884b6d272f0d147070ffdaae67b09dcab033fc5927882708d0fa33aafdfe8648",
+    "password_hash": "pbkdf2_sha256$390000$38390073d57a140c05f7f77864e029c0$e9303799dba9a0c5e90a911fbf225670e6962b625d30c78e41bbd608640f7801",
     "role": "caregiver",
     "specialization": "Caregiver",
     "patient_list": []
@@ -301,12 +302,37 @@
     "id": "test_wf_doctor_001",
     "full_name": "Test Doctor One",
     "email": "doctor1@testwf.local",
-    "password_hash": "pbkdf2_sha256$390000$136f27e7726bb7638c4511c51f0fa3e1$771459ed4ea3035e7ab693fb9177a8400fb0ecae1be6088705f0d51347c77530",
+    "password_hash": "pbkdf2_sha256$390000$0b8a7a389d236a3f4e5d89878f23df0b$3a4ef4ce9c2e5162f36fb06574837eb976ea63c6e162bd79da1d4e70716a24cf",
     "role": "doctor",
     "specialization": "Neurology",
     "patient_list": [
       "test_wf_patient_001",
       "test_wf_patient_002"
     ]
+  },
+  "a60cacf2-2f0a-4ad8-a882-3b6f565c2c99": {
+    "id": "a60cacf2-2f0a-4ad8-a882-3b6f565c2c99",
+    "full_name": "Tanisha",
+    "email": "tanishadutta@gmail.com",
+    "password_hash": "pbkdf2_sha256$390000$ce03f556117e771c0c07aef5e5bf9567$0c6f1f1c30455495ec589c24ed6fc81899fb3082aa1c38585a45fd9334211d4d",
+    "role": "doctor",
+    "age": null,
+    "gender": null,
+    "phone": null,
+    "license_number": "12345",
+    "created_at": "2026-09-19T01:22:02+00:00",
+    "last_login": "2026-09-19T01:22:02+00:00",
+    "specialization": "Neurology",
+    "hospital": "CMRI",
+    "location": "Kolkata",
+    "years_experience": 12,
+    "consultation_mode": "Both",
+    "bio": null,
+    "max_patients": 10,
+    "current_patients": 1,
+    "patient_list": [
+      "62016f45-d650-4f1e-b21a-065d81d92127"
+    ],
+    "pending_requests": []
   }
 }

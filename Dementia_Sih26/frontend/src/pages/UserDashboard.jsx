@@ -659,20 +659,33 @@ export default function UserDashboard({ setPage }) {
   const last    = results.length > 0 ? results[results.length - 1] : null;
   const hasData = !!last;
 
+  const parseScore = (v, fallback = 0) => {
+    if (v === null || v === undefined) return fallback;
+    const num = Number(v);
+    return isNaN(num) ? fallback : Math.max(0, Math.min(100, Math.round(num)));
+  };
+
   const domains = hasData ? [
-    { label: t("speechDomain", "Speech"),    v: Math.round(last.speech_score),    color: RED  },
-    { label: t("memoryDomain", "Memory"),    v: Math.round(last.memory_score),    color: BLU  },
-    { label: t("reactionDomain", "Reaction"),  v: Math.round(last.reaction_score),  color: AMB  },
-    { label: t("executiveDomain", "Executive"), v: Math.round(last.executive_score), color: PUR  },
-    { label: t("motorDomain", "Motor"),     v: Math.round(last.motor_score),     color: LIME },
+    { label: t("speechDomain", "Speech"),    v: parseScore(last.speech_score ?? last.speech ?? last.domain_scores?.speech),    color: RED  },
+    { label: t("memoryDomain", "Memory"),    v: parseScore(last.memory_score ?? last.memory ?? last.domain_scores?.memory),    color: BLU  },
+    { label: t("reactionDomain", "Reaction"),  v: parseScore(last.reaction_score ?? last.reaction ?? last.domain_scores?.reaction),  color: AMB  },
+    { label: t("executiveDomain", "Executive"), v: parseScore(last.executive_score ?? last.executive ?? last.domain_scores?.executive), color: PUR  },
+    { label: t("motorDomain", "Motor"),     v: parseScore(last.motor_score ?? last.motor ?? last.domain_scores?.motor),     color: LIME },
   ] : [];
 
   const overallScore = hasData ? Math.round(domains.reduce((s, d) => s + d.v, 0) / domains.length) : null;
 
   const chartData = results.slice(-7).map(r =>
-    Math.round([r.speech_score, r.memory_score, r.reaction_score, r.executive_score, r.motor_score].reduce((a, b) => a + b, 0) / 5)
+    Math.round([
+      parseScore(r.speech_score ?? r.speech ?? r.domain_scores?.speech),
+      parseScore(r.memory_score ?? r.memory ?? r.domain_scores?.memory),
+      parseScore(r.reaction_score ?? r.reaction ?? r.domain_scores?.reaction),
+      parseScore(r.executive_score ?? r.executive ?? r.domain_scores?.executive),
+      parseScore(r.motor_score ?? r.motor ?? r.domain_scores?.motor),
+    ].reduce((a, b) => a + b, 0) / 5)
   );
   while (chartData.length < 7) chartData.unshift(null);
+
 
   const lastDate   = last ? new Date(last.timestamp).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : null;
   const attentionPriority = hasData ? (() => {
@@ -814,9 +827,10 @@ export default function UserDashboard({ setPage }) {
                         <span style={{ fontSize: 13, color: "#888", fontWeight: 500 }}>{d.label}</span>
                         <span style={{ fontSize: 14, fontWeight: 900, color: "#fff" }}>{d.v}</span>
                       </div>
-                      <div style={{ height: 3, borderRadius: 2, background: "rgba(255,255,255,0.07)" }}>
-                        <div style={{ height: "100%", width: `${d.v}%`, background: d.color, borderRadius: 2, boxShadow: `0 0 10px ${d.color}55`, transition: "width 1s ease" }} />
+                      <div style={{ height: 6, borderRadius: 3, background: "rgba(255,255,255,0.12)", position: "relative", overflow: "hidden" }}>
+                        <div style={{ height: "100%", width: `${d.v}%`, minWidth: d.v > 0 ? 4 : 0, background: d.color, borderRadius: 3, boxShadow: d.v > 0 ? `0 0 10px ${d.color}55` : "none", transition: "width 1s ease" }} />
                       </div>
+
                     </div>
                   ))}
                 </DarkCard>
@@ -859,23 +873,39 @@ export default function UserDashboard({ setPage }) {
                 </div>
               )}
 
-              {/* Domain Performance Row (Measured domain scores, NOT disease proxies) */}
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 16, marginBottom: 16 }}>
+              {/* Domain Performance Row (Measured domain scores across all 5 domains) */}
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 16, marginBottom: 16 }}>
                 {[
+                  {
+                    key: "speech",
+                    label: "Speech & Phonation",
+                    icon: "🎙️",
+                    color: RED,
+                    score: parseScore(last.speech_score ?? last.speech ?? last.domain_scores?.speech),
+                    desc: "Passage reading cadence, WPM, and phonation rhythm",
+                  },
                   {
                     key: "memory",
                     label: "Memory Performance",
                     icon: "🧩",
                     color: BLU,
-                    score: Math.round(last.memory_score ?? 0),
+                    score: parseScore(last.memory_score ?? last.memory ?? last.domain_scores?.memory),
                     desc: "Immediate & delayed word recall accuracy",
+                  },
+                  {
+                    key: "reaction",
+                    label: "Reaction Speed",
+                    icon: "⚡",
+                    color: AMB,
+                    score: parseScore(last.reaction_score ?? last.reaction ?? last.domain_scores?.reaction),
+                    desc: "Psychomotor reaction latency & sustained attention",
                   },
                   {
                     key: "executive",
                     label: "Executive Performance",
                     icon: "🌀",
                     color: PUR,
-                    score: Math.round(last.executive_score ?? 0),
+                    score: parseScore(last.executive_score ?? last.executive ?? last.domain_scores?.executive),
                     desc: "Stroop inhibitory control & cognitive flexibility",
                   },
                   {
@@ -883,7 +913,7 @@ export default function UserDashboard({ setPage }) {
                     label: "Motor Performance",
                     icon: "🎯",
                     color: LIME,
-                    score: Math.round(last.motor_score ?? 0),
+                    score: parseScore(last.motor_score ?? last.motor ?? last.domain_scores?.motor),
                     desc: "Rhythmic finger tapping cadence & regularity",
                   },
                 ].map(d => {
@@ -903,13 +933,14 @@ export default function UserDashboard({ setPage }) {
                         <span style={{ background: `${lvlColor}18`, color: lvlColor, padding: "3px 10px", borderRadius: 20, fontSize: 10, fontWeight: 700, border: `1px solid ${lvlColor}33` }}>{statusLabel}</span>
                       </div>
                       <div style={{ fontFamily: "'DM Sans',sans-serif", fontWeight: 900, fontSize: 40, color: d.color, lineHeight: 1 }}>{score}<span style={{ fontSize: 16, color: "#555" }}>/100</span></div>
-                      <div style={{ height: 4, borderRadius: 2, background: "rgba(255,255,255,0.07)", marginTop: 12 }}>
-                        <div style={{ height: "100%", width: `${Math.min(score, 100)}%`, background: d.color, borderRadius: 2 }} />
+                      <div style={{ height: 6, borderRadius: 3, background: "rgba(255,255,255,0.12)", marginTop: 12, overflow: "hidden" }}>
+                        <div style={{ height: "100%", width: `${Math.min(score, 100)}%`, minWidth: score > 0 ? 4 : 0, background: d.color, borderRadius: 3 }} />
                       </div>
                     </DarkCard>
                   );
                 })}
               </div>
+
 
               {/* View Results CTA */}
               <DarkCard style={{ padding: 28, display: "flex", alignItems: "center", justifyContent: "space-between", border: `1px solid ${LIME}28` }} hover={false}>

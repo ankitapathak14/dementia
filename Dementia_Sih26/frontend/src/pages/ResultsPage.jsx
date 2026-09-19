@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { T } from "../utils/theme";
 import { DarkCard, Btn, MiniChart } from "../components/RiskDashboard";
 import { useAssessment } from "../context/AssessmentContext";
+import { getMyResults } from "../services/api";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // ETHICAL FRAMING SYSTEM
@@ -130,7 +131,8 @@ function RadarChart({ scores }) {
 // ── Domain Score Card ─────────────────────────────────────────────────────────
 function DomainCard({ label, score, expanded, onToggle }) {
   const meta = DOMAIN_META[label];
-  const tier = getScoreTier(score);
+  const safeScore = typeof score === "number" && !isNaN(score) ? Math.max(0, Math.min(100, Math.round(score))) : 0;
+  const tier = getScoreTier(safeScore);
   const tierMsg = meta[tier];
   const tierColor = tier === "low" ? "#34d399" : tier === "mid" ? "#fbbf24" : "#f87171";
   const tierLabel = tier === "low" ? "Healthy range" : tier === "mid" ? "Within variation" : "Worth monitoring";
@@ -154,7 +156,7 @@ function DomainCard({ label, score, expanded, onToggle }) {
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
           <div style={{ textAlign: "right" }}>
-            <div style={{ fontSize: 22, fontWeight: 700, color: meta.color, fontFamily: "'Instrument Serif', serif" }}>{score}</div>
+            <div style={{ fontSize: 22, fontWeight: 700, color: meta.color, fontFamily: "'Instrument Serif', serif" }}>{safeScore}</div>
             <div style={{ fontSize: 10, color: "rgba(240,236,227,0.35)", textTransform: "uppercase", letterSpacing: 0.6 }}>/ 100</div>
           </div>
           <div style={{ color: "rgba(240,236,227,0.3)", fontSize: 16, transition: "transform 0.2s", transform: expanded ? "rotate(90deg)" : "none" }}>›</div>
@@ -162,9 +164,10 @@ function DomainCard({ label, score, expanded, onToggle }) {
       </div>
 
       {/* Progress bar */}
-      <div style={{ height: 3, borderRadius: 2, background: "rgba(255,255,255,0.06)", marginTop: 16 }}>
-        <div style={{ height: "100%", width: `${score}%`, background: `linear-gradient(90deg, ${meta.color}88, ${meta.color})`, borderRadius: 2, transition: "width 0.8s ease" }} />
+      <div style={{ height: 6, borderRadius: 3, background: "rgba(255,255,255,0.12)", marginTop: 16, overflow: "hidden" }}>
+        <div style={{ height: "100%", width: `${safeScore}%`, minWidth: safeScore > 0 ? 4 : 0, background: `linear-gradient(90deg, ${meta.color}88, ${meta.color})`, borderRadius: 3, transition: "width 0.8s ease" }} />
       </div>
+
 
       {/* Expanded explanation */}
       {expanded && (
@@ -508,8 +511,35 @@ export default function ResultsPage({ setPage }) {
   const { apiResult, profile, error, reset } = useAssessment();
   const [expandedDomain, setExpandedDomain] = useState(null);
   const [showRaw, setShowRaw] = useState(false);
+  const [historyResult, setHistoryResult] = useState(null);
+  const [loadingHistory, setLoadingHistory] = useState(false);
 
-  if (!apiResult || typeof apiResult !== "object" || Object.keys(apiResult).length === 0) {
+  useEffect(() => {
+    if (!apiResult || typeof apiResult !== "object" || Object.keys(apiResult).length === 0) {
+      setLoadingHistory(true);
+      getMyResults()
+        .then(res => {
+          if (res && res.length > 0) {
+            setHistoryResult(res[res.length - 1]);
+          }
+        })
+        .catch(() => {})
+        .finally(() => setLoadingHistory(false));
+    }
+  }, [apiResult]);
+
+  const r = (apiResult && typeof apiResult === "object" && Object.keys(apiResult).length > 0)
+    ? apiResult
+    : historyResult;
+
+  if (!r) {
+    if (loadingHistory) {
+      return (
+        <div style={{ color: "rgba(240,236,227,0.5)", background: T.bg, minHeight: "60vh", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16 }}>
+          Loading assessment results…
+        </div>
+      );
+    }
     return (
       <div style={{ color: T.red, background: T.bg, minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18 }}>
         <div style={{ textAlign: "center", maxWidth: 400 }}>
@@ -526,7 +556,6 @@ export default function ResultsPage({ setPage }) {
     );
   }
 
-  const r = apiResult;
   const today = new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
   const compositeRisk = r.composite_risk_score ?? 0;
   const wellnessScore = toWellnessScore(compositeRisk);
@@ -535,12 +564,18 @@ export default function ResultsPage({ setPage }) {
   // Map wellness label to numeric level for recommendations
   const wellnessLevel = compositeRisk < 30 ? 0 : compositeRisk < 55 ? 1 : compositeRisk < 70 ? 2 : 3;
 
+  const parseScore = (v, fallback = 0) => {
+    if (v === null || v === undefined) return fallback;
+    const num = Number(v);
+    return isNaN(num) ? fallback : Math.max(0, Math.min(100, Math.round(num)));
+  };
+
   const domainScores = [
-    { label: "Speech",    score: Math.max(0, Math.min(100, Math.round(r.speech_score))) },
-    { label: "Memory",    score: Math.max(0, Math.min(100, Math.round(r.memory_score))) },
-    { label: "Reaction",  score: Math.max(0, Math.min(100, Math.round(r.reaction_score))) },
-    { label: "Executive", score: Math.max(0, Math.min(100, Math.round(r.executive_score))) },
-    { label: "Motor",     score: Math.max(0, Math.min(100, Math.round(r.motor_score))) },
+    { label: "Speech",    score: parseScore(r.speech_score ?? r.speech ?? r.domain_scores?.speech) },
+    { label: "Memory",    score: parseScore(r.memory_score ?? r.memory ?? r.domain_scores?.memory) },
+    { label: "Reaction",  score: parseScore(r.reaction_score ?? r.reaction ?? r.domain_scores?.reaction) },
+    { label: "Executive", score: parseScore(r.executive_score ?? r.executive ?? r.domain_scores?.executive) },
+    { label: "Motor",     score: parseScore(r.motor_score ?? r.motor ?? r.domain_scores?.motor) },
   ];
 
   const radarData = Object.fromEntries(domainScores.map(d => [d.label, d.score]));
